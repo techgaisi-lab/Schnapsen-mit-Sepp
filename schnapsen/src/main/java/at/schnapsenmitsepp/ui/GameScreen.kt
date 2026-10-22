@@ -77,6 +77,8 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
     val state = vm.hand ?: return
     val cardStyle = LocalCardStyle.current
     var showLastTrick by remember { mutableStateOf(false) }
+    // Nur die eigenen Augen werden gezeigt – und nur, wenn "Augen mitzählen" eingeschaltet ist.
+    val ownPoints = if (vm.settings.showPoints) state.points(Seat.PLAYER) else null
 
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
         val landscape = maxWidth > maxHeight * 1.15f
@@ -103,10 +105,7 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                 ) {
                     SeppHeader(vm, onBack)
                     MiniScore(vm, Modifier.fillMaxWidth().clickable(onClick = onShowList))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TrumpBadge(state.trumpSuit, cardStyle, Modifier)
-                        PointsPanel(state, vm.settings.showPoints, Modifier.weight(1f))
-                    }
+                    TrumpBadge(state.trumpSuit, cardStyle, Modifier)
                 }
                 // Der Tisch
                 Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -114,8 +113,8 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                         TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
-                        TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", tableCardW * 0.55f, Modifier.align(Alignment.TopEnd).padding(12.dp))
-                        TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", tableCardW * 0.55f, Modifier.align(Alignment.BottomEnd).padding(12.dp))
+                        TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", null, tableCardW * 0.55f, Modifier.align(Alignment.TopEnd).padding(12.dp))
+                        TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", ownPoints, tableCardW * 0.55f, Modifier.align(Alignment.BottomEnd).padding(12.dp))
                     }
                     PlayerHand(state, handCardW) { card -> vm.onPlayer(Action.Play(card)) }
                 }
@@ -137,9 +136,8 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                 Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                 TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
                 TrumpBadge(state.trumpSuit, cardStyle, Modifier.align(Alignment.TopEnd).padding(10.dp))
-                TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", tableCardW * 0.55f, Modifier.align(Alignment.TopStart).padding(start = 18.dp, top = 6.dp))
-                TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", tableCardW * 0.55f, Modifier.align(Alignment.BottomStart).padding(start = 18.dp, bottom = 6.dp))
-                PointsPanel(state, vm.settings.showPoints, Modifier.align(Alignment.BottomEnd).padding(10.dp))
+                TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", null, tableCardW * 0.55f, Modifier.align(Alignment.TopStart).padding(start = 18.dp, top = 6.dp))
+                TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", ownPoints, tableCardW * 0.55f, Modifier.align(Alignment.BottomStart).padding(start = 18.dp, bottom = 6.dp))
             }
             StatusLine(state, vm)
             ActionBar(state, vm, cardStyle, onShowLastTrick = { showLastTrick = true })
@@ -325,11 +323,11 @@ private fun Talon(state: HandState, cardW: Dp, modifier: Modifier) {
 
 /**
  * Die gewonnenen Stiche als kleiner, verdeckter Stoß beim jeweiligen Spieler – wie am Wirtshaustisch
- * kreuzweise übereinander gelegt.
+ * kreuzweise übereinander gelegt. [points] nur beim eigenen Stoß (Stiche plus Ansagen).
  */
 @Composable
-private fun TrickPile(tricks: Int, label: String, cardW: Dp, modifier: Modifier) {
-    if (tricks == 0) return
+private fun TrickPile(tricks: Int, label: String, points: Int?, cardW: Dp, modifier: Modifier) {
+    if (tricks == 0 && (points ?: 0) == 0) return
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(cardW * CARD_RATIO * 1.1f), contentAlignment = Alignment.Center) {
             for (i in 0 until minOf(tricks, 6)) {
@@ -350,6 +348,14 @@ private fun TrickPile(tricks: Int, label: String, cardW: Dp, modifier: Modifier)
             color = SeppColors.Cream,
             fontSize = 13.sp,
         )
+        if (points != null) {
+            Text(
+                "$points Augen",
+                color = SeppColors.Gold,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 
@@ -418,34 +424,6 @@ private fun TrumpBadge(suit: Suit, cardStyle: CardStyle, modifier: Modifier) {
         Text("Atout", color = SeppColors.Gold, fontSize = 11.sp)
         Canvas(Modifier.size(30.dp)) { drawSuit(suit, Offset(size.width / 2, size.height / 2), size.minDimension, cardStyle) }
         Text(cardStyle.suitName(suit), color = SeppColors.Cream, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun PointsPanel(state: HandState, showPoints: Boolean, modifier: Modifier) {
-    Column(
-        modifier
-            .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalAlignment = Alignment.End,
-    ) {
-        if (showPoints) {
-            Text("Augen", color = SeppColors.Gold, fontSize = 11.sp)
-            Text(
-                "Du: ${state.points(Seat.PLAYER)}",
-                color = SeppColors.Cream,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        val cardStyle = LocalCardStyle.current
-        state.marriages.forEach { m ->
-            Text(
-                "${if (m.seat == Seat.PLAYER) "Du" else "Sepp"}: ${m.points} in ${cardStyle.suitName(m.suit)}",
-                color = SeppColors.Gold,
-                fontSize = 11.sp,
-            )
-        }
     }
 }
 

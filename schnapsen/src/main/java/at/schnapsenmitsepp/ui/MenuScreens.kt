@@ -238,7 +238,7 @@ private fun SettingsPanel(vm: GameViewModel) {
             .background(Color.Black.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        SettingRow("Augen mitzählen", "Zeigt deine Augen am Tisch an", vm.settings.showPoints) {
+        SettingRow("Augen mitzählen", "Zeigt deine Augen unter deinem Stoß an", vm.settings.showPoints) {
             vm.updateSettings(vm.settings.copy(showPoints = it))
         }
     }
