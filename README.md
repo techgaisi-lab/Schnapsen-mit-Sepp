@@ -1,8 +1,8 @@
 # Schnapsen mit Sepp
 
 Zweier-Schnapsen nach österreichischen Wirtshausregeln (angelehnt an „Schnapsen mit Karl“)
-gegen den Computergegner **Sepp** – mit französischem Blatt (Herz, Karo, Pik, Kreuz) oder wahlweise
-doppeldeutschen Karten, Bummerl, Liste, 20/40, Atout tauschen und Zudrehen.
+gegen den Computergegner **Sepp** – mit französischem Blatt (Herz, Karo, Pik, Kreuz), Bummerl, Liste,
+20/40, Atout tauschen und Zudrehen. Große Schrift und Bedienelemente, gedacht für Tablets.
 
 Das Projekt ist so aufgebaut, dass es **als eigene App** läuft und **in eine andere Android-App
 eingebunden** werden kann.
@@ -24,7 +24,7 @@ schnapsen/src/main/java/at/schnapsenmitsepp/
 └── SchnapsenActivity.kt  fertige Activity für Host-Apps
 ```
 
-Alle Grafiken (französische und doppeldeutsche Karten, Kartenrücken mit Edelweiß, Sepp, Filztisch) sind als Vektor-Zeichnungen in
+Alle Grafiken (französische Karten, Kartenrücken mit Edelweiß, Sepp, Filztisch) sind als Vektor-Zeichnungen in
 Compose umgesetzt – keine Bilddateien, in jeder Auflösung scharf.
 
 ## Schwierigkeitsstufen

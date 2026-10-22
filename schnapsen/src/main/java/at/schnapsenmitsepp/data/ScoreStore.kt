@@ -7,12 +7,9 @@ import at.schnapsenmitsepp.engine.Bummerl
 import at.schnapsenmitsepp.engine.HandEndReason
 import at.schnapsenmitsepp.engine.ListEntry
 import at.schnapsenmitsepp.engine.Seat
-import at.schnapsenmitsepp.ui.cards.CardStyle
 
 data class Settings(
     val difficulty: Difficulty = Difficulty.MITTEL,
-    /** Französisches (Herz, Karo, Pik, Kreuz) oder doppeldeutsches Blatt. */
-    val cardStyle: CardStyle = CardStyle.FRANZOESISCH,
     /** Augen mitzählen und anzeigen. */
     val showPoints: Boolean = true,
 )
@@ -32,13 +29,11 @@ class ScoreStore(context: Context) {
 
     fun loadSettings() = Settings(
         difficulty = runCatching { Difficulty.valueOf(prefs.getString("difficulty", null)!!) }.getOrDefault(Difficulty.MITTEL),
-        cardStyle = runCatching { CardStyle.valueOf(prefs.getString("cardStyle", null)!!) }.getOrDefault(CardStyle.FRANZOESISCH),
         showPoints = prefs.getBoolean("showPoints", true),
     )
 
     fun saveSettings(s: Settings) = prefs.edit {
         putString("difficulty", s.difficulty.name)
-        putString("cardStyle", s.cardStyle.name)
         putBoolean("showPoints", s.showPoints)
     }
 

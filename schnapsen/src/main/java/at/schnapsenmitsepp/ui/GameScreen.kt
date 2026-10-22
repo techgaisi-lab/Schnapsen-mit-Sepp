@@ -81,7 +81,7 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
         val landscape = maxWidth > maxHeight * 1.15f
         val handCardW = if (landscape) {
-            minOf(maxHeight * 0.3f / CARD_RATIO, (maxWidth - 360.dp) / 4.6f)
+            minOf(maxHeight * 0.3f / CARD_RATIO, (maxWidth - 410.dp) / 4.6f)
         } else {
             minOf(maxWidth / 4.4f, maxHeight * 0.19f / CARD_RATIO)
         }
@@ -114,12 +114,14 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                         TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
+                        TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", tableCardW * 0.55f, Modifier.align(Alignment.TopEnd).padding(12.dp))
+                        TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", tableCardW * 0.55f, Modifier.align(Alignment.BottomEnd).padding(12.dp))
                     }
                     PlayerHand(state, handCardW) { card -> vm.onPlayer(Action.Play(card)) }
                 }
                 // Aktionen rechts
                 Column(
-                    Modifier.width(150.dp).fillMaxHeight().padding(vertical = 10.dp),
+                    Modifier.width(200.dp).fillMaxHeight().padding(vertical = 10.dp, horizontal = 6.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -135,6 +137,8 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                 Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                 TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
                 TrumpBadge(state.trumpSuit, cardStyle, Modifier.align(Alignment.TopEnd).padding(10.dp))
+                TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", tableCardW * 0.55f, Modifier.align(Alignment.TopStart).padding(start = 18.dp, top = 6.dp))
+                TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", tableCardW * 0.55f, Modifier.align(Alignment.BottomStart).padding(start = 18.dp, bottom = 6.dp))
                 PointsPanel(state, vm.settings.showPoints, Modifier.align(Alignment.BottomEnd).padding(10.dp))
             }
             StatusLine(state, vm)
@@ -319,6 +323,36 @@ private fun Talon(state: HandState, cardW: Dp, modifier: Modifier) {
     }
 }
 
+/**
+ * Die gewonnenen Stiche als kleiner, verdeckter Stoß beim jeweiligen Spieler – wie am Wirtshaustisch
+ * kreuzweise übereinander gelegt.
+ */
+@Composable
+private fun TrickPile(tricks: Int, label: String, cardW: Dp, modifier: Modifier) {
+    if (tricks == 0) return
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(cardW * CARD_RATIO * 1.1f), contentAlignment = Alignment.Center) {
+            for (i in 0 until minOf(tricks, 6)) {
+                PlayingCard(
+                    card = null,
+                    faceUp = false,
+                    modifier = Modifier
+                        .offset(x = (i * 1.5f).dp, y = (-i * 2f).dp)
+                        .graphicsLayer { rotationZ = if (i % 2 == 0) 82f else 98f }
+                        .width(cardW)
+                        .aspectRatio(1f / CARD_RATIO),
+                    elevation = 2f,
+                )
+            }
+        }
+        Text(
+            "$label: $tricks",
+            color = SeppColors.Cream,
+            fontSize = 13.sp,
+        )
+    }
+}
+
 @Composable
 private fun TrickArea(state: HandState, collectingTo: Seat?, cardW: Dp, travel: Dp, modifier: Modifier) {
     Box(modifier.width(cardW * 2.2f).height(cardW * CARD_RATIO * 1.3f), contentAlignment = Alignment.Center) {
@@ -403,17 +437,7 @@ private fun PointsPanel(state: HandState, showPoints: Boolean, modifier: Modifie
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
             )
-            Text(
-                "Sepp: ${state.points(Seat.SEPP)}",
-                color = SeppColors.Cream.copy(alpha = 0.8f),
-                fontSize = 12.sp,
-            )
         }
-        Text(
-            "Stiche: ${state.tricks(Seat.PLAYER)} : ${state.tricks(Seat.SEPP)}",
-            color = SeppColors.Cream.copy(alpha = 0.8f),
-            fontSize = 12.sp,
-        )
         val cardStyle = LocalCardStyle.current
         state.marriages.forEach { m ->
             Text(

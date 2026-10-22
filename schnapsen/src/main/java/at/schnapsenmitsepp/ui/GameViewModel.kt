@@ -18,6 +18,7 @@ import at.schnapsenmitsepp.engine.HandState
 import at.schnapsenmitsepp.engine.Rank
 import at.schnapsenmitsepp.engine.Rules
 import at.schnapsenmitsepp.engine.Seat
+import at.schnapsenmitsepp.ui.cards.CardStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -166,7 +167,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         seppMood = SeppMood.NORMAL
         when (action) {
             is Action.Announce -> {
-                seppSays = if (Rules.marriageValue(s, action.suit) == 40) "Vierzg!" else "Zwanzg in ${settings.cardStyle.suitName(action.suit)}!"
+                seppSays = if (Rules.marriageValue(s, action.suit) == 40) "Vierzg!" else "Zwanzg in ${CardStyle.FRANZOESISCH.suitName(action.suit)}!"
                 seppMood = SeppMood.HAPPY
             }
             Action.Close -> {

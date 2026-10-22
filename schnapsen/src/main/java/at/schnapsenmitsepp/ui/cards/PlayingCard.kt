@@ -90,7 +90,7 @@ private fun DrawScope.drawCornerIndex(card: Card, textMeasurer: TextMeasurer, ca
     val w = size.width
     val style = TextStyle(
         color = if (cardStyle == CardStyle.FRANZOESISCH) suitColor(card.suit, cardStyle) else SeppColors.Ink,
-        fontSize = (w * 0.19f).toSp(),
+        fontSize = (w * 0.21f).toSp(),
         fontWeight = FontWeight.Bold,
         fontFamily = FontFamily.Serif,
     )

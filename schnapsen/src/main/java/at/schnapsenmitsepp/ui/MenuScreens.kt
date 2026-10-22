@@ -64,6 +64,7 @@ internal fun MenuScreen(
     onExit: (() -> Unit)?,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
+        val compact = maxHeight < 560.dp
         if (maxWidth > maxHeight * 1.15f) {
             // Querformat: links Titel und Sepp, rechts Auswahl und Knöpfe
             Row(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
@@ -72,9 +73,9 @@ internal fun MenuScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    MenuHeader(onExit, compact = true)
+                    MenuHeader(onExit, compact = compact)
                     Spacer(Modifier.height(14.dp))
-                    MenuButtons(vm, onPlay, onNewBummerl, onList, onRules, compact = true)
+                    MenuButtons(vm, onPlay, onNewBummerl, onList, onRules, compact = compact)
                 }
                 Spacer(Modifier.width(20.dp))
                 Column(
@@ -237,32 +238,7 @@ private fun SettingsPanel(vm: GameViewModel) {
             .background(Color.Black.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
             .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        Text("Kartenblatt", color = SeppColors.Cream, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            CardStyle.entries.forEach { style ->
-                val selected = vm.settings.cardStyle == style
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .background(if (selected) SeppColors.Gold.copy(alpha = 0.22f) else Color.Transparent, RoundedCornerShape(10.dp))
-                        .border(if (selected) 2.dp else 1.dp, if (selected) SeppColors.Gold else SeppColors.GoldDark.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                        .clickable { vm.updateSettings(vm.settings.copy(cardStyle = style)) }
-                        .padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    CompositionLocalProvider(LocalCardStyle provides style) {
-                        Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
-                            listOf(Rank.KOENIG, Rank.OBER, Rank.UNTER).forEach { r ->
-                                PlayingCard(Card(Suit.HERZ, r), Modifier.width(40.dp).aspectRatio(1f / CARD_RATIO), elevation = 2f)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(style.title, color = SeppColors.Cream, fontSize = 13.sp)
-                }
-            }
-        }
-        SettingRow("Augen mitzählen", "Zeigt die Augen beider Spieler an", vm.settings.showPoints) {
+        SettingRow("Augen mitzählen", "Zeigt deine Augen am Tisch an", vm.settings.showPoints) {
             vm.updateSettings(vm.settings.copy(showPoints = it))
         }
     }
@@ -419,8 +395,8 @@ internal fun RulesScreen(onBack: () -> Unit) {
 }
 
 private val RULES = listOf(
-    "Die Karten" to "Gespielt wird mit 20 Karten: Ass (11 Augen), Zehner (10), König (4), Dame bzw. Ober (3) und Bube bzw. Unter (2) " +
-        "in den Farben Herz, Karo, Pik und Kreuz (doppeldeutsch: Herz, Schell, Laub, Eichel). Zusammen sind das 120 Augen.",
+    "Die Karten" to "Gespielt wird mit 20 französischen Karten: Ass (11 Augen), Zehner (10), König (4), Dame (3) und Bube (2) " +
+        "in den Farben Herz, Karo, Pik und Kreuz. Zusammen sind das 120 Augen.",
     "Ziel" to "Wer zuerst 66 Augen aus Stichen und Ansagen hat und selbst \"Aus!\" meldet, gewinnt das Spiel. Wer zuerst 7 Spielpunkte hat, gewinnt das Bummerl.",
     "Geben" to "Die Spieler geben abwechselnd. Jeder bekommt 5 Karten, eine Karte wird aufgedeckt und bestimmt die Atoutfarbe (Trumpf). " +
         "Der Talon liegt quer darüber, die Atoutkarte zählt als unterste Talonkarte. Wer nicht gegeben hat, spielt aus.",
