@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zwei gefächerte Karten: hinten Kartenrücken, vorne Herz-Ass -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:rotation="-14" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#7A1F2B" android:strokeColor="#FFF8E7" android:strokeWidth="2"
+            android:pathData="M38,30 h22 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-22 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 z" />
+        <path android:fillColor="#E8C26A" android:pathData="M49,46 l5,7 l-5,7 l-5,-7 z" />
+    </group>
+    <group android:rotation="10" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#FFF8E7" android:strokeColor="#B08A3C" android:strokeWidth="1.5"
+            android:pathData="M48,30 h22 a4,4 0 0 1 4,4 v38 a4,4 0 0 1 -4,4 h-22 a4,4 0 0 1 -4,-4 v-38 a4,4 0 0 1 4,-4 z" />
+        <path android:fillColor="#C62828"
+            android:pathData="M59,63 C52,57 51,50 55.5,48.5 C57.5,48 59,49.5 59,51 C59,49.5 60.5,48 62.5,48.5 C67,50 66,57 59,63 z" />
+        <path android:fillColor="#2B1D12" android:pathData="M50.5,40 l2.2,-6 h1.4 l2.2,6 h-1.5 l-0.5,-1.4 h-1.8 l-0.5,1.4 z M53.1,37.4 h1.2 l-0.6,-1.8 z" />
+    </group>
+</vector>
