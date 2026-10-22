@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,12 +79,56 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
     var showLastTrick by remember { mutableStateOf(false) }
 
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
-        val handCardW = minOf(maxWidth / 4.4f, maxHeight * 0.19f / CARD_RATIO)
-        val tableCardW = handCardW * 0.92f
-        val seppCardW = handCardW * 0.6f
+        val landscape = maxWidth > maxHeight * 1.15f
+        val handCardW = if (landscape) {
+            minOf(maxHeight * 0.3f / CARD_RATIO, (maxWidth - 360.dp) / 4.6f)
+        } else {
+            minOf(maxWidth / 4.4f, maxHeight * 0.19f / CARD_RATIO)
+        }
+        val tableCardW = handCardW * if (landscape) 0.85f else 0.92f
+        val seppCardW = handCardW * if (landscape) 0.5f else 0.6f
         val travel = maxHeight * 0.38f
 
-        Column(Modifier.fillMaxSize()) {
+        if (landscape) {
+            Row(Modifier.fillMaxSize()) {
+                // Seitenleiste links: Sepp, Liste, Atout, Augen
+                Column(
+                    Modifier
+                        .width(190.dp)
+                        .fillMaxHeight()
+                        .background(SeppColors.WoodDark.copy(alpha = 0.85f))
+                        .verticalScroll(rememberScrollState())
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SeppHeader(vm, onBack)
+                    MiniScore(vm, Modifier.fillMaxWidth().clickable(onClick = onShowList))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TrumpBadge(state.trumpSuit, cardStyle, Modifier)
+                        PointsPanel(state, vm.settings.showPoints, Modifier.weight(1f))
+                    }
+                }
+                // Der Tisch
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    SeppHand(state, seppCardW)
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
+                        TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
+                    }
+                    PlayerHand(state, handCardW) { card -> vm.onPlayer(Action.Play(card)) }
+                }
+                // Aktionen rechts
+                Column(
+                    Modifier.width(150.dp).fillMaxHeight().padding(vertical = 10.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    StatusLine(state, vm)
+                    Spacer(Modifier.height(10.dp))
+                    ActionBar(state, vm, cardStyle, vertical = true, onShowLastTrick = { showLastTrick = true })
+                }
+            }
+        } else Column(Modifier.fillMaxSize()) {
             TopBar(vm, onBack, onShowList)
             SeppHand(state, seppCardW)
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -103,6 +149,36 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
         if (state.isOver) {
             ResultOverlay(vm, state, onShowList)
         }
+    }
+}
+
+/** Sepp mit Sprechblase – für die Seitenleiste im Querformat. */
+@Composable
+private fun SeppHeader(vm: GameViewModel, onBack: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "‹",
+            color = SeppColors.Cream,
+            fontSize = 30.sp,
+            modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 6.dp),
+        )
+        SeppAvatar(if (vm.seppThinking) SeppMood.THINKING else vm.seppMood, Modifier.size(48.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Sepp", color = SeppColors.Gold, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+    }
+    val says = if (vm.seppThinking) "Hmm, wos moch i jetzt…" else vm.seppSays
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .background(
+                if (says != null) SeppColors.Cream else Color.Transparent,
+                RoundedCornerShape(topStart = 2.dp, topEnd = 12.dp, bottomEnd = 12.dp, bottomStart = 12.dp),
+            )
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(says.orEmpty(), color = SeppColors.Ink, fontSize = 13.sp, maxLines = 2, lineHeight = 16.sp)
     }
 }
 
@@ -320,8 +396,9 @@ private fun PointsPanel(state: HandState, showPoints: Boolean, modifier: Modifie
         horizontalAlignment = Alignment.End,
     ) {
         if (showPoints) {
+            Text("Augen", color = SeppColors.Gold, fontSize = 11.sp)
             Text(
-                "Deine Augen: ${state.points(Seat.PLAYER)}",
+                "Du: ${state.points(Seat.PLAYER)}",
                 color = SeppColors.Cream,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -375,26 +452,39 @@ private fun StatusLine(state: HandState, vm: GameViewModel) {
 }
 
 @Composable
-private fun ActionBar(state: HandState, vm: GameViewModel, cardStyle: CardStyle, onShowLastTrick: () -> Unit) {
+private fun ActionBar(
+    state: HandState,
+    vm: GameViewModel,
+    cardStyle: CardStyle,
+    vertical: Boolean = false,
+    onShowLastTrick: () -> Unit,
+) {
     val me = Seat.PLAYER
     val chips = buildList {
         if (Rules.canExchangeTrump(state, me)) add("Atout tauschen" to Action.ExchangeTrump)
         if (Rules.canClose(state, me)) add("Zudrehen" to Action.Close)
         if (Rules.canClaim(state, me)) add("Aus! (66)" to Action.Claim)
     }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val buttons: @Composable () -> Unit = {
         chips.forEach { (label, action) -> GoldButton(label, small = true) { vm.onPlayer(action) } }
         if (state.lastTrick != null && !state.isOver) {
             GoldButton("Letzter Stich", small = true, secondary = true, onClick = onShowLastTrick)
         }
+    }
+    if (vertical) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            buttons()
+        }
+    } else {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) { buttons() }
     }
 }
 
@@ -580,6 +670,7 @@ internal fun WoodPanel(modifier: Modifier = Modifier, content: @Composable () ->
                 RoundedCornerShape(18.dp),
             )
             .border(2.dp, SeppColors.GoldDark, RoundedCornerShape(18.dp))
+            .verticalScroll(rememberScrollState())
             .padding(22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) { content() }

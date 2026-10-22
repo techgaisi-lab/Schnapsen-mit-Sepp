@@ -6,6 +6,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,145 +63,208 @@ internal fun MenuScreen(
     onRules: () -> Unit,
     onExit: (() -> Unit)?,
 ) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .feltBackground()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (onExit != null) {
-            Text(
-                "‹ Zurück",
-                color = SeppColors.Cream,
-                modifier = Modifier.align(Alignment.Start).clickable(onClick = onExit).padding(6.dp),
+    BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
+        if (maxWidth > maxHeight * 1.15f) {
+            // Querformat: links Titel und Sepp, rechts Auswahl und Knöpfe
+            Row(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
+                Column(
+                    Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    MenuHeader(onExit, compact = true)
+                    Spacer(Modifier.height(14.dp))
+                    MenuButtons(vm, onPlay, onNewBummerl, onList, onRules, compact = true)
+                }
+                Spacer(Modifier.width(20.dp))
+                Column(
+                    Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    DifficultyPicker(vm)
+                    Spacer(Modifier.height(16.dp))
+                    SettingsPanel(vm)
+                }
+            }
+        } else {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                MenuHeader(onExit)
+                Spacer(Modifier.height(18.dp))
+                DifficultyPicker(vm)
+                Spacer(Modifier.height(20.dp))
+                MenuButtons(vm, onPlay, onNewBummerl, onList, onRules)
+                Spacer(Modifier.height(20.dp))
+                SettingsPanel(vm)
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.MenuHeader(onExit: (() -> Unit)?, compact: Boolean = false) {
+    if (onExit != null) {
+        Text(
+            "‹ Zurück",
+            color = SeppColors.Cream,
+            modifier = Modifier.align(Alignment.Start).clickable(onClick = onExit).padding(6.dp),
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+    // Vier Asse als Fächer
+    val cardW = if (compact) 60.dp else 84.dp
+    Box(Modifier.height(cardW * 1.8f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+        val suits = listOf(Suit.EICHEL, Suit.LAUB, Suit.HERZ, Suit.SCHELLE)
+        suits.forEachIndexed { i, suit ->
+            val rel = i - 1.5f
+            PlayingCard(
+                Card(suit, Rank.ASS),
+                Modifier
+                    .offset(x = cardW * 0.55f * rel, y = (kotlin.math.abs(rel) * 8).dp)
+                    .graphicsLayer {
+                        rotationZ = rel * 12f
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1.2f)
+                    }
+                    .width(cardW)
+                    .aspectRatio(1f / CARD_RATIO),
+                elevation = 8f,
             )
         }
-        Spacer(Modifier.height(8.dp))
-        // Vier Asse als Fächer
-        Box(Modifier.height(150.dp).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
-            val suits = listOf(Suit.EICHEL, Suit.LAUB, Suit.HERZ, Suit.SCHELLE)
-            suits.forEachIndexed { i, suit ->
-                val rel = i - 1.5f
-                PlayingCard(
-                    Card(suit, Rank.ASS),
-                    Modifier
-                        .offset(x = (rel * 46).dp, y = (kotlin.math.abs(rel) * 8).dp)
-                        .graphicsLayer {
-                            rotationZ = rel * 12f
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1.2f)
-                        }
-                        .width(84.dp)
-                        .aspectRatio(1f / CARD_RATIO),
-                    elevation = 8f,
-                )
-            }
-        }
-        Spacer(Modifier.height(34.dp))
-        Text(
-            "Schnapsen",
-            style = MaterialTheme.typography.displayLarge,
-            color = SeppColors.Gold,
-        )
-        Text("mit Sepp", style = MaterialTheme.typography.headlineMedium, color = SeppColors.Cream)
-        Spacer(Modifier.height(12.dp))
+    }
+    Spacer(Modifier.height(if (compact) 20.dp else 34.dp))
+    Text(
+        "Schnapsen",
+        style = if (compact) MaterialTheme.typography.displayLarge.copy(fontSize = 32.sp) else MaterialTheme.typography.displayLarge,
+        color = SeppColors.Gold,
+    )
+    Text(
+        "mit Sepp",
+        style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+        color = SeppColors.Cream,
+    )
+    if (compact) return
+    Spacer(Modifier.height(12.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SeppAvatar(SeppMood.HAPPY, Modifier.size(76.dp))
-            Spacer(Modifier.width(10.dp))
-            Box(
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        SeppAvatar(SeppMood.HAPPY, Modifier.size(76.dp))
+        Spacer(Modifier.width(10.dp))
+        Box(
+            Modifier
+                .background(SeppColors.Cream, RoundedCornerShape(topStart = 2.dp, topEnd = 14.dp, bottomEnd = 14.dp, bottomStart = 14.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Text("Servus! Spü ma a Bummerl?", color = SeppColors.Ink)
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.DifficultyPicker(vm: GameViewModel) {
+    Text("Wie stark soll Sepp spielen?", color = SeppColors.Cream, style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(8.dp))
+    Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Difficulty.entries.forEach { d ->
+            val selected = vm.settings.difficulty == d
+            Row(
                 Modifier
-                    .background(SeppColors.Cream, RoundedCornerShape(topStart = 2.dp, topEnd = 14.dp, bottomEnd = 14.dp, bottomStart = 14.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Text("Servus! Spü ma a Bummerl?", color = SeppColors.Ink)
-            }
-        }
-        Spacer(Modifier.height(18.dp))
-
-        Text("Wie stark soll Sepp spielen?", color = SeppColors.Cream, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Difficulty.entries.forEach { d ->
-                val selected = vm.settings.difficulty == d
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(
-                            if (selected) SeppColors.Gold.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.22f),
-                            RoundedCornerShape(12.dp),
-                        )
-                        .border(if (selected) 2.dp else 1.dp, if (selected) SeppColors.Gold else SeppColors.GoldDark.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                        .clickable { vm.setDifficulty(d) }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "★".repeat(d.ordinal + 1).padEnd(4, '☆'),
-                        color = SeppColors.Gold,
-                        fontSize = 16.sp,
-                        modifier = Modifier.width(72.dp),
+                    .fillMaxWidth()
+                    .background(
+                        if (selected) SeppColors.Gold.copy(alpha = 0.22f) else Color.Black.copy(alpha = 0.22f),
+                        RoundedCornerShape(12.dp),
                     )
-                    Column {
-                        Text(d.title, color = SeppColors.Cream, fontWeight = FontWeight.Bold)
-                        Text(d.subtitle, color = SeppColors.Cream.copy(alpha = 0.75f), fontSize = 13.sp)
-                    }
+                    .border(if (selected) 2.dp else 1.dp, if (selected) SeppColors.Gold else SeppColors.GoldDark.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .clickable { vm.setDifficulty(d) }
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "★".repeat(d.ordinal + 1).padEnd(4, '☆'),
+                    color = SeppColors.Gold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.width(72.dp),
+                )
+                Column {
+                    Text(d.title, color = SeppColors.Cream, fontWeight = FontWeight.Bold)
+                    Text(d.subtitle, color = SeppColors.Cream.copy(alpha = 0.75f), fontSize = 13.sp)
                 }
             }
         }
-        Spacer(Modifier.height(20.dp))
+    }
+}
 
-        val running = vm.bummerl.entries.isNotEmpty() && !vm.bummerl.isFinished || vm.hand?.isOver == false
-        GoldButton(if (running) "Weiterspielen" else "Bummerl starten", Modifier.widthIn(min = 240.dp), onClick = onPlay)
+@Composable
+private fun ColumnScope.MenuButtons(
+    vm: GameViewModel,
+    onPlay: () -> Unit,
+    onNewBummerl: () -> Unit,
+    onList: () -> Unit,
+    onRules: () -> Unit,
+    compact: Boolean = false,
+) {
+    val running = vm.bummerl.entries.isNotEmpty() && !vm.bummerl.isFinished || vm.hand?.isOver == false
+    GoldButton(if (running) "Weiterspielen" else "Bummerl starten", Modifier.widthIn(min = 240.dp), onClick = onPlay)
+    Spacer(Modifier.height(10.dp))
+    if (compact) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (running) GoldButton("Neues Bummerl", small = true, secondary = true, onClick = onNewBummerl)
+            GoldButton("Liste", small = true, secondary = true, onClick = onList)
+            GoldButton("Regeln", small = true, secondary = true, onClick = onRules)
+        }
+        return
+    }
+    if (running) {
+        GoldButton("Neues Bummerl", Modifier.widthIn(min = 240.dp), secondary = true, onClick = onNewBummerl)
         Spacer(Modifier.height(10.dp))
-        if (running) {
-            GoldButton("Neues Bummerl", Modifier.widthIn(min = 240.dp), secondary = true, onClick = onNewBummerl)
-            Spacer(Modifier.height(10.dp))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GoldButton("Liste", secondary = true, onClick = onList)
-            GoldButton("Regeln", secondary = true, onClick = onRules)
-        }
-        Spacer(Modifier.height(20.dp))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        GoldButton("Liste", secondary = true, onClick = onList)
+        GoldButton("Regeln", secondary = true, onClick = onRules)
+    }
+}
 
-        Column(
-            Modifier
-                .widthIn(max = 420.dp)
-                .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-        ) {
-            Text("Kartenblatt", color = SeppColors.Cream, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CardStyle.entries.forEach { style ->
-                    val selected = vm.settings.cardStyle == style
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .background(if (selected) SeppColors.Gold.copy(alpha = 0.22f) else Color.Transparent, RoundedCornerShape(10.dp))
-                            .border(if (selected) 2.dp else 1.dp, if (selected) SeppColors.Gold else SeppColors.GoldDark.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
-                            .clickable { vm.updateSettings(vm.settings.copy(cardStyle = style)) }
-                            .padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        CompositionLocalProvider(LocalCardStyle provides style) {
-                            Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
-                                listOf(Rank.KOENIG, Rank.OBER, Rank.UNTER).forEach { r ->
-                                    PlayingCard(Card(Suit.HERZ, r), Modifier.width(40.dp).aspectRatio(1f / CARD_RATIO), elevation = 2f)
-                                }
+@Composable
+private fun SettingsPanel(vm: GameViewModel) {
+    Column(
+        Modifier
+            .widthIn(max = 420.dp)
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    ) {
+        Text("Kartenblatt", color = SeppColors.Cream, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            CardStyle.entries.forEach { style ->
+                val selected = vm.settings.cardStyle == style
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .background(if (selected) SeppColors.Gold.copy(alpha = 0.22f) else Color.Transparent, RoundedCornerShape(10.dp))
+                        .border(if (selected) 2.dp else 1.dp, if (selected) SeppColors.Gold else SeppColors.GoldDark.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                        .clickable { vm.updateSettings(vm.settings.copy(cardStyle = style)) }
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CompositionLocalProvider(LocalCardStyle provides style) {
+                        Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
+                            listOf(Rank.KOENIG, Rank.OBER, Rank.UNTER).forEach { r ->
+                                PlayingCard(Card(Suit.HERZ, r), Modifier.width(40.dp).aspectRatio(1f / CARD_RATIO), elevation = 2f)
                             }
                         }
-                        Spacer(Modifier.height(4.dp))
-                        Text(style.title, color = SeppColors.Cream, fontSize = 13.sp)
                     }
+                    Spacer(Modifier.height(4.dp))
+                    Text(style.title, color = SeppColors.Cream, fontSize = 13.sp)
                 }
             }
-            SettingRow("Augen mitzählen", "Zeigt die Augen beider Spieler an", vm.settings.showPoints) {
-                vm.updateSettings(vm.settings.copy(showPoints = it))
-            }
         }
-        Spacer(Modifier.height(24.dp))
+        SettingRow("Augen mitzählen", "Zeigt die Augen beider Spieler an", vm.settings.showPoints) {
+            vm.updateSettings(vm.settings.copy(showPoints = it))
+        }
     }
 }
 
