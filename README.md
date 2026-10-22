@@ -1,6 +1,6 @@
 # Schnapsen mit Sepp
 
-Zweier-Schnapsen nach österreichischen Regeln (wie auf [schnopsn.com](https://schnopsn.com/schnapsen-regeln))
+Zweier-Schnapsen nach österreichischen Wirtshausregeln (angelehnt an „Schnapsen mit Karl“)
 gegen den Computergegner **Sepp** – mit französischem Blatt (Herz, Karo, Pik, Kreuz) oder wahlweise
 doppeldeutschen Karten, Bummerl, Liste, 20/40, Atout tauschen und Zudrehen.
 
@@ -44,13 +44,14 @@ Karten, Atout, gezeigte Hochzeiten).
 - 20 Karten: Ass 11 · Zehner 10 · König 4 · Dame/Ober 3 · Bube/Unter 2 (zusammen 120 Augen).
 - Talon offen: kein Farb-/Stichzwang. Talon zu oder leer: höher stechen, sonst Farbe zugeben,
   sonst mit Atout stechen, sonst abwerfen (Farbzwang geht vor Stichzwang).
-- 20/40 beim Ausspielen ansagen – die Augen werden **sofort** gutgeschrieben.
-- Wer nach einem Stich oder einer Ansage **66 Augen** hat, gewinnt **automatisch**.
+- 20/40 werden automatisch angesagt, wenn man König oder Dame mit Partner ausspielt; die Augen zählen **sofort**.
+- Wer **66 Augen** hat, muss **selbst „Aus!“ melden** (beim Ausspielen oder gleich nach einer Ansage).
+  Falsch ausgemeldet = verloren (Gegner bekommt mindestens 2 Punkte), vergessen = es wird weitergespielt.
 - Atout-Bube tauschen und Zudrehen beim Ausspielen, solange der Talon offen ist.
-- Wertung: 3 Punkte (Gegner ohne Stich), 2 (Gegner ≤ 32 Augen), 1 (Gegner ≥ 33).
+- Wertung beim Ausmelden: 3 Punkte (Gegner ohne Stich), 2 (Gegner ≤ 32 Augen), 1 (Gegner ≥ 33).
 - Zudrehen: Die Augen des Gegners werden eingefroren. Schafft der Zudreher die 66 nicht, bekommt der
   Gegner die Punkte, die der Zudreher bekommen hätte – mindestens 2.
-- Erreicht niemand 66, gewinnt der letzte Stich (nicht nach dem Zudrehen).
+- Meldet niemand aus, gewinnt der letzte Stich (nicht nach dem Zudrehen).
 - Bummerl: Wer zuerst 7 Spielpunkte hat, gewinnt. Auf der Liste wird von 7 heruntergeschrieben;
   hat der Verlierer keinen Punkt, bekommt er zwei Bummerl.
 - Den letzten Stich darf man sich ansehen.
@@ -122,5 +123,5 @@ Library haben das Präfix `sms_`, damit es keine Namenskonflikte gibt.
 ./gradlew :schnapsen:testDebugUnitTest
 ```
 
-Die Tests prüfen Regeln (Farbzwang, Stechen, 20/40, automatisches Ende bei 66, Tauschen, Zudrehen, Wertung, Bummerl) und lassen
+Die Tests prüfen Regeln (Farbzwang, Stechen, 20/40, Ausmelden, Tauschen, Zudrehen, Wertung, Bummerl) und lassen
 alle Bot-Stufen komplette Spiele gegeneinander spielen.

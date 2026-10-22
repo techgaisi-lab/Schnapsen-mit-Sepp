@@ -1,14 +1,15 @@
 package at.schnapsenmitsepp.engine
 
 /**
- * Regeln für das österreichische Zweier-Schnapsen (20 Karten, 66 Augen), wie auf
- * schnopsn.com/schnapsen-regeln beschrieben:
+ * Regeln für das österreichische Zweier-Schnapsen (20 Karten, 66 Augen), wie im Wirtshaus und bei
+ * "Schnapsen mit Karl":
  *
  * - Solange der Talon offen ist, besteht weder Farb- noch Stichzwang.
  * - Nach dem Zudrehen oder wenn der Talon aufgebraucht ist: mit höherer Karte der Farbe stechen,
  *   sonst niedrigere Karte der Farbe zugeben, sonst mit Atout stechen, sonst beliebig abwerfen.
  * - 20 bzw. 40 (Atout-Paar) sagt an, wer ausspielt; die Augen werden sofort gutgeschrieben.
- * - Wer nach einem Stich oder einer Ansage 66 Augen hat, gewinnt sofort.
+ * - Wer 66 Augen hat, muss beim Ausspielen selbst "Aus!" melden. Falsch ausgemeldet = verloren,
+ *   vergessen = es wird weitergespielt.
  * - Atout-Bube tauschen und Zudrehen beim Ausspielen, solange der Talon offen ist.
  */
 object Rules {
@@ -60,10 +61,19 @@ object Rules {
         return hand
     }
 
-    /** Alle erlaubten Aktionen für [seat]. */
+    /** Ausmelden darf, wer ausspielt – vor dem Ausspielen bzw. gleich nach einer Ansage. */
+    fun canClaim(state: HandState, seat: Seat): Boolean =
+        state.toAct == seat && state.leadCard == null
+
+    /** Wäre "Aus!" jetzt richtig (mindestens 66 Augen)? */
+    fun claimIsValid(state: HandState, seat: Seat): Boolean =
+        canClaim(state, seat) && state.points(seat) >= HandState.WINNING_POINTS
+
+    /** Alle erlaubten Aktionen. Ein falsches "Aus!" ist zwar erlaubt, wird hier aber nicht angeboten. */
     fun legalActions(state: HandState, seat: Seat): List<Action> {
         if (state.toAct != seat) return emptyList()
         val actions = mutableListOf<Action>()
+        if (claimIsValid(state, seat)) actions += Action.Claim
         if (canExchangeTrump(state, seat)) actions += Action.ExchangeTrump
         if (canClose(state, seat)) actions += Action.Close
         announceableSuits(state, seat).forEach { actions += Action.Announce(it) }
@@ -82,6 +92,7 @@ object Rules {
         is Action.Announce -> action.suit in announceableSuits(state, seat)
         Action.ExchangeTrump -> canExchangeTrump(state, seat)
         Action.Close -> canClose(state, seat)
+        Action.Claim -> canClaim(state, seat)
     }
 
     /**
@@ -99,6 +110,7 @@ object Rules {
             Action.Close -> state.copy(
                 closed = CloseSnapshot(seat, state.points(seat.other), state.tricks(seat.other)),
             )
+            Action.Claim -> claim(state, seat)
         }
     }
 
@@ -130,7 +142,7 @@ object Rules {
                 state.revealed[i] + Card(suit, Rank.KOENIG) + Card(suit, Rank.OBER),
             ),
         )
-        return if (next.points(seat) >= HandState.WINNING_POINTS) finishWith66(next, seat) else next
+        return next
     }
 
     private fun exchange(state: HandState, seat: Seat): HandState {
@@ -181,17 +193,13 @@ object Rules {
             won = state.won.replace(winner, state.won[w] + lead + follow),
             lastTrick = Trick(state.leader, lead, follow, winner),
         )
-        return when {
-            next.points(winner) >= HandState.WINNING_POINTS -> finishWith66(next, winner)
-            next.hands.all { it.isEmpty() } -> finishWithout66(next, winner)
-            else -> next
-        }
+        return if (next.hands.all { it.isEmpty() }) finishWithout66(next, winner) else next
     }
 
     private fun finishWithout66(state: HandState, lastTrickWinner: Seat): HandState {
         val closed = state.closed
         if (closed != null) {
-            // Nach dem Zudrehen entscheidet nicht der letzte Stich: der Zudreher hat verloren.
+            // Zugedreht und nicht ausgemeldet: der letzte Stich zählt nicht, der Zudreher hat verloren.
             val winner = closed.closer.other
             return state.copy(
                 result = HandResult(
@@ -215,9 +223,15 @@ object Rules {
         )
     }
 
-    /** [seat] hat 66 erreicht – das Spiel endet sofort. */
-    private fun finishWith66(state: HandState, seat: Seat): HandState {
+    private fun claim(state: HandState, seat: Seat): HandState {
         val other = seat.other
+        if (state.points(seat) < HandState.WINNING_POINTS) {
+            // Falsch ausgemeldet: der Ausmelder hat verloren, der Gegner bekommt mindestens 2 Punkte.
+            val points = maxOf(2, gamePointsFor(state.points(seat), state.tricks(seat)))
+            return state.copy(
+                result = HandResult(other, points, HandEndReason.WRONG_CLAIM, state.points(other), state.points(seat)),
+            )
+        }
         val closed = state.closed
         val gamePoints = when {
             closed == null -> normalGamePoints(state, other)

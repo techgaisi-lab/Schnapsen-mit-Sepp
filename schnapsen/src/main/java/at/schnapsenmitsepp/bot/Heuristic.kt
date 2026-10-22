@@ -19,6 +19,8 @@ internal object Heuristic {
     }
 
     private fun chooseAsLeader(state: HandState, me: Seat, allowClose: Boolean): Action {
+        if (Rules.claimIsValid(state, me)) return Action.Claim
+
         state.announcedSuit?.let { suit ->
             val ober = Card(suit, Rank.OBER)
             return Action.Play(if (ober in state.hand(me)) ober else Card(suit, Rank.KOENIG))

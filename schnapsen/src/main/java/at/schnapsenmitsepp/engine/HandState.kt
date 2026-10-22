@@ -15,6 +15,9 @@ sealed interface Action {
 
     /** Zudrehen: Der Talon wird geschlossen, ab jetzt gilt Farb- und Stichzwang. */
     data object Close : Action
+
+    /** "Aus!" – der Spieler meldet selbst, dass er 66 Augen hat. Mit weniger hat er verloren. */
+    data object Claim : Action
 }
 
 data class Trick(val leader: Seat, val lead: Card, val follow: Card, val winner: Seat)
@@ -22,8 +25,11 @@ data class Trick(val leader: Seat, val lead: Card, val follow: Card, val winner:
 data class Marriage(val seat: Seat, val suit: Suit, val points: Int)
 
 enum class HandEndReason {
-    /** Ein Spieler hat nach einem Stich oder einer Ansage 66 Augen erreicht. */
+    /** Ein Spieler hat mit mindestens 66 Augen richtig ausgemeldet. */
     REACHED_66,
+
+    /** Falsch ausgemeldet (weniger als 66 Augen). */
+    WRONG_CLAIM,
 
     /** Niemand hat 66 erreicht, der letzte Stich entscheidet. */
     LAST_TRICK,

@@ -355,7 +355,7 @@ internal fun RulesScreen(onBack: () -> Unit) {
 private val RULES = listOf(
     "Die Karten" to "Gespielt wird mit 20 Karten: Ass (11 Augen), Zehner (10), König (4), Dame bzw. Ober (3) und Bube bzw. Unter (2) " +
         "in den Farben Herz, Karo, Pik und Kreuz (doppeldeutsch: Herz, Schell, Laub, Eichel). Zusammen sind das 120 Augen.",
-    "Ziel" to "Wer zuerst 66 Augen aus Stichen und Ansagen sammelt, gewinnt das Spiel. Wer zuerst 7 Spielpunkte hat, gewinnt das Bummerl.",
+    "Ziel" to "Wer zuerst 66 Augen aus Stichen und Ansagen hat und selbst \"Aus!\" meldet, gewinnt das Spiel. Wer zuerst 7 Spielpunkte hat, gewinnt das Bummerl.",
     "Geben" to "Die Spieler geben abwechselnd. Jeder bekommt 5 Karten, eine Karte wird aufgedeckt und bestimmt die Atoutfarbe (Trumpf). " +
         "Der Talon liegt quer darüber, die Atoutkarte zählt als unterste Talonkarte. Wer nicht gegeben hat, spielt aus.",
     "Stechen" to "Ein Stich geht an die höhere Karte derselben Farbe oder an Atout. Bei verschiedenen Farben ohne Atout gewinnt die ausgespielte Karte. " +
@@ -364,16 +364,18 @@ private val RULES = listOf(
     "Farb- und Stichzwang" to "Ist der Talon aufgebraucht oder zugedreht, musst du: mit einer höheren Karte der angespielten Farbe stechen; " +
         "geht das nicht, eine niedrigere Karte der Farbe zugeben; hast du die Farbe nicht, mit Atout stechen; sonst beliebig abwerfen. " +
         "Farbzwang geht vor Stichzwang – mit Atout stechen, obwohl du die Farbe hast, ist verboten.",
-    "20 und 40" to "Hast du König und Dame einer Farbe, kannst du beim Ausspielen ansagen: 20 Augen, in der Atoutfarbe 40. " +
-        "Die Augen werden sofort gutgeschrieben, danach spielst du König oder Dame aus.",
+    "20 und 40" to "Spielst du König oder Dame aus und hast den Partner derselben Farbe in der Hand, wird automatisch angesagt: " +
+        "20 Augen, in der Atoutfarbe 40. Die Augen werden sofort gutgeschrieben.",
     "Atout tauschen" to "Wer den Atout-Buben hat, darf ihn beim Ausspielen gegen die offene Atoutkarte unter dem Talon tauschen – " +
         "solange der Talon offen ist.",
     "Zudrehen" to "Beim Ausspielen kannst du den Talon zudrehen. Dann wird nicht mehr abgehoben, es gilt Farb- und Stichzwang und Atout tauschen geht nicht mehr. " +
         "Die Augen des Gegners werden eingefroren: Hatte er beim Zudrehen keinen Stich, bekommst du 3 Punkte, bei 32 oder weniger Augen 2, sonst 1. " +
         "Schaffst du die 66 nicht, bekommt der Gegner die Punkte, die du bekommen hättest – mindestens 2.",
-    "66 erreicht" to "Hat ein Spieler nach einem Stich oder einer Ansage 66 Augen, endet das Spiel sofort. Wertung:\n" +
+    "Ausmelden" to "Mitzählen musst du selbst! Hast du 66 Augen, drückst du beim Ausspielen (oder gleich nach einer Ansage) auf \"Aus!\". " +
+        "Meldest du mit weniger als 66 aus, hast du verloren und der Gegner bekommt mindestens 2 Punkte. " +
+        "Vergisst du es, wird weitergespielt. Wertung beim richtigen Ausmelden:\n" +
         "3 Punkte: der Gegner hat keinen Stich.\n2 Punkte: der Gegner hat 32 Augen oder weniger.\n1 Punkt: der Gegner hat 33 oder mehr.",
-    "Letzter Stich" to "Erreicht niemand 66, gewinnt der letzte Stich das Spiel. Wurde zugedreht, gilt das nicht – dann hat der Zudreher verloren.",
+    "Letzter Stich" to "Meldet niemand aus, gewinnt der letzte Stich das Spiel. Wurde zugedreht, gilt das nicht – dann hat der Zudreher verloren.",
     "Bummerl und Liste" to "Wer zuerst 7 Spielpunkte hat, gewinnt; der Verlierer hat das Bummerl. Auf der Liste wird traditionell von 7 heruntergeschrieben. " +
         "Hat der Verlierer gar keinen Punkt gemacht, bekommt er zwei Bummerl.",
 )

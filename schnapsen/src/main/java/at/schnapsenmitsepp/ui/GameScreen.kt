@@ -74,7 +74,6 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
     LaunchedEffect(Unit) { vm.ensureHand() }
     val state = vm.hand ?: return
     val cardStyle = LocalCardStyle.current
-    var marriageAsk by remember { mutableStateOf<Card?>(null) }
     var showLastTrick by remember { mutableStateOf(false) }
 
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
@@ -94,41 +93,11 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
             }
             StatusLine(state, vm)
             ActionBar(state, vm, cardStyle, onShowLastTrick = { showLastTrick = true })
-            PlayerHand(state, handCardW) { card ->
-                if (state.toAct != Seat.PLAYER) return@PlayerHand
-                val partnerRank = when (card.rank) {
-                    Rank.KOENIG -> Rank.OBER
-                    Rank.OBER -> Rank.KOENIG
-                    else -> null
-                }
-                if (partnerRank != null && card.suit in Rules.announceableSuits(state, Seat.PLAYER)) {
-                    marriageAsk = card
-                } else {
-                    vm.onPlayer(Action.Play(card))
-                }
-            }
+            PlayerHand(state, handCardW) { card -> vm.onPlayer(Action.Play(card)) }
         }
 
         state.lastTrick?.takeIf { showLastTrick }?.let { trick ->
             LastTrickDialog(trick, tableCardW, onDismiss = { showLastTrick = false })
-        }
-
-        marriageAsk?.let { card ->
-            MarriageDialog(
-                card = card,
-                cardStyle = cardStyle,
-                value = Rules.marriageValue(state, card.suit),
-                onAnnounce = {
-                    marriageAsk = null
-                    vm.onPlayer(Action.Announce(card.suit))
-                    vm.onPlayer(Action.Play(card))
-                },
-                onPlayOnly = {
-                    marriageAsk = null
-                    vm.onPlayer(Action.Play(card))
-                },
-                onDismiss = { marriageAsk = null },
-            )
         }
 
         if (state.isOver) {
@@ -384,7 +353,7 @@ private fun StatusLine(state: HandState, vm: GameViewModel) {
     val text = vm.hint ?: when {
         state.isOver -> ""
         vm.seppThinking -> "Sepp überlegt…"
-        state.toAct == Seat.PLAYER && state.announcedSuit != null -> "Spiel König oder ${LocalCardStyle.current.rankName(Rank.OBER)} aus"
+        state.toAct == Seat.PLAYER && state.announcedSuit != null -> "Du hast 66 – sag \"Aus!\" oder spiel König/${LocalCardStyle.current.rankName(Rank.OBER)} aus"
         state.toAct == Seat.PLAYER && state.leadCard == null -> "Du spielst aus"
         state.toAct == Seat.PLAYER && state.strictRules -> "Gib zu – Farb- und Stichzwang!"
         state.toAct == Seat.PLAYER -> "Gib zu"
@@ -411,9 +380,7 @@ private fun ActionBar(state: HandState, vm: GameViewModel, cardStyle: CardStyle,
     val chips = buildList {
         if (Rules.canExchangeTrump(state, me)) add("Atout tauschen" to Action.ExchangeTrump)
         if (Rules.canClose(state, me)) add("Zudrehen" to Action.Close)
-        Rules.announceableSuits(state, me).forEach {
-            add("${Rules.marriageValue(state, it)} ansagen (${cardStyle.suitName(it)})" to Action.Announce(it))
-        }
+        if (Rules.canClaim(state, me)) add("Aus! (66)" to Action.Claim)
     }
     Row(
         Modifier
@@ -519,35 +486,6 @@ private fun LastTrickDialog(trick: Trick, cardW: Dp, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun MarriageDialog(card: Card, cardStyle: CardStyle, value: Int, onAnnounce: () -> Unit, onPlayOnly: () -> Unit, onDismiss: () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
-        contentAlignment = Alignment.Center,
-    ) {
-        WoodPanel(Modifier.padding(24.dp).widthIn(max = 360.dp)) {
-            Text(
-                if (value == 40) "Vierzig ansagen?" else "Zwanzig ansagen?",
-                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                color = SeppColors.Gold,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Du hast König und ${cardStyle.rankName(Rank.OBER)} in ${cardStyle.suitName(card.suit)}. Die $value Augen werden sofort gutgeschrieben.",
-                color = SeppColors.Cream,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(14.dp))
-            GoldButton("$value ansagen & ausspielen", onClick = onAnnounce)
-            Spacer(Modifier.height(8.dp))
-            GoldButton("Nur ausspielen", secondary = true, onClick = onPlayOnly)
-        }
-    }
-}
-
-@Composable
 private fun ResultOverlay(vm: GameViewModel, state: HandState, onShowList: () -> Unit) {
     val r = state.result ?: return
     val finished = vm.finishedBummerl
@@ -559,7 +497,8 @@ private fun ResultOverlay(vm: GameViewModel, state: HandState, onShowList: () ->
         else -> "einfach"
     }
     val reasonText = when (r.reason) {
-        HandEndReason.REACHED_66 -> if (playerWon) "Du hast ${r.winnerPoints} Augen erreicht." else "Sepp hat ${r.winnerPoints} Augen erreicht."
+        HandEndReason.REACHED_66 -> if (playerWon) "Du hast mit ${r.winnerPoints} Augen ausgemeldet." else "Sepp hat mit ${r.winnerPoints} Augen ausgemeldet."
+        HandEndReason.WRONG_CLAIM -> if (loser == Seat.PLAYER) "Falsch ausgemeldet – du hattest erst ${r.loserPoints} Augen." else "Sepp hat sich verzählt (${r.loserPoints} Augen)."
         HandEndReason.LAST_TRICK -> if (playerWon) "Keiner hatte 66 – dein letzter Stich entscheidet." else "Keiner hatte 66 – Sepp hat den letzten Stich."
         HandEndReason.CLOSER_FAILED -> if (loser == Seat.PLAYER) "Du hast zugedreht, aber keine 66 geschafft." else "Sepp hat zugedreht und keine 66 geschafft."
     }

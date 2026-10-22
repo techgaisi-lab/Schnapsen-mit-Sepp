@@ -105,6 +105,22 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         hint = null
+        // Wie bei Karl: König oder Dame mit Partner ausspielen = automatisch 20/40 angesagt.
+        if (action is Action.Play && s.leadCard == null && s.announcedSuit == null &&
+            (action.card.rank == Rank.KOENIG || action.card.rank == Rank.OBER) &&
+            action.card.suit in Rules.announceableSuits(s, Seat.PLAYER)
+        ) {
+            val announced = Rules.apply(s, Action.Announce(action.card.suit))
+            seppSays = if (Rules.marriageValue(s, action.card.suit) == 40) "Vierzg! Respekt." else "A Zwanzger, eh scho wissen."
+            if (Rules.claimIsValid(announced, Seat.PLAYER)) {
+                // Mit der Ansage sind 66 erreicht – jetzt darf der Spieler "Aus!" sagen.
+                hand = announced
+                return
+            }
+            hand = Rules.apply(announced, action)
+            advance()
+            return
+        }
         when (action) {
             is Action.Announce -> seppSays = if (Rules.marriageValue(s, action.suit) == 40) "Vierzg! Respekt." else "A Zwanzger, eh scho wissen."
             Action.Close -> seppSays = "Du drahst zua? Na schau ma moi."
@@ -158,6 +174,10 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
                 seppMood = SeppMood.HAPPY
             }
             Action.ExchangeTrump -> seppSays = "Den Atout-Buam tausch i ma."
+            Action.Claim -> {
+                seppSays = "Und aus is'! ${s.points(Seat.SEPP)} hab i."
+                seppMood = SeppMood.HAPPY
+            }
             is Action.Play -> if (s.leadCard != null) {
                 val winner = Rules.trickWinner(s.trumpSuit, s.leader, s.leadCard!!, action.card)
                 if (winner == Seat.SEPP && s.leadCard!!.rank >= Rank.ZEHN) seppSays = "Den nimm i ma!"
@@ -178,9 +198,10 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         )
         seppMood = if (r.winner == Seat.SEPP) SeppMood.HAPPY else SeppMood.GRUMPY
         seppSays = when {
+            r.reason == HandEndReason.WRONG_CLAIM && r.winner == Seat.SEPP -> "Na geh, des san no ka 66!"
+            r.reason == HandEndReason.WRONG_CLAIM -> "Hoppla, i hab mi verzählt..."
             r.reason == HandEndReason.CLOSER_FAILED && r.winner == Seat.SEPP -> "Zuadraht und ned g'schafft, gell?"
             r.winner == Seat.SEPP && r.gamePoints == 3 -> "Schwarz! Des woar nix."
-            r.winner == Seat.SEPP && r.reason == HandEndReason.REACHED_66 -> "Und aus is'! ${r.winnerPoints} hab i."
             r.winner == Seat.SEPP -> "Des Spü g'hört mir."
             r.gamePoints == 3 -> "Schwarz?! Heast, des gibt's ned..."
             else -> "Glück g'habt, gell?"
