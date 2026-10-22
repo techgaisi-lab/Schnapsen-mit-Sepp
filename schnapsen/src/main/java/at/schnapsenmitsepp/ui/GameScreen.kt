@@ -57,7 +57,10 @@ import at.schnapsenmitsepp.engine.Rank
 import at.schnapsenmitsepp.engine.Rules
 import at.schnapsenmitsepp.engine.Seat
 import at.schnapsenmitsepp.engine.Suit
+import at.schnapsenmitsepp.engine.Trick
 import at.schnapsenmitsepp.ui.cards.CARD_RATIO
+import at.schnapsenmitsepp.ui.cards.CardStyle
+import at.schnapsenmitsepp.ui.cards.LocalCardStyle
 import at.schnapsenmitsepp.ui.cards.PlayingCard
 import at.schnapsenmitsepp.ui.cards.drawSuit
 import at.schnapsenmitsepp.ui.theme.SeppColors
@@ -70,7 +73,9 @@ import androidx.compose.ui.geometry.Offset
 internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () -> Unit) {
     LaunchedEffect(Unit) { vm.ensureHand() }
     val state = vm.hand ?: return
+    val cardStyle = LocalCardStyle.current
     var marriageAsk by remember { mutableStateOf<Card?>(null) }
+    var showLastTrick by remember { mutableStateOf(false) }
 
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
         val handCardW = minOf(maxWidth / 4.4f, maxHeight * 0.19f / CARD_RATIO)
@@ -84,11 +89,11 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                 TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
-                TrumpBadge(state.trumpSuit, Modifier.align(Alignment.TopEnd).padding(10.dp))
+                TrumpBadge(state.trumpSuit, cardStyle, Modifier.align(Alignment.TopEnd).padding(10.dp))
                 PointsPanel(state, vm.settings.showPoints, Modifier.align(Alignment.BottomEnd).padding(10.dp))
             }
             StatusLine(state, vm)
-            ActionBar(state, vm)
+            ActionBar(state, vm, cardStyle, onShowLastTrick = { showLastTrick = true })
             PlayerHand(state, handCardW) { card ->
                 if (state.toAct != Seat.PLAYER) return@PlayerHand
                 val partnerRank = when (card.rank) {
@@ -104,9 +109,14 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
             }
         }
 
+        state.lastTrick?.takeIf { showLastTrick }?.let { trick ->
+            LastTrickDialog(trick, tableCardW, onDismiss = { showLastTrick = false })
+        }
+
         marriageAsk?.let { card ->
             MarriageDialog(
                 card = card,
+                cardStyle = cardStyle,
                 value = Rules.marriageValue(state, card.suit),
                 onAnnounce = {
                     marriageAsk = null
@@ -319,7 +329,7 @@ private fun TrickCard(
 }
 
 @Composable
-private fun TrumpBadge(suit: Suit, modifier: Modifier) {
+private fun TrumpBadge(suit: Suit, cardStyle: CardStyle, modifier: Modifier) {
     Column(
         modifier
             .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
@@ -327,8 +337,8 @@ private fun TrumpBadge(suit: Suit, modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("Atout", color = SeppColors.Gold, fontSize = 11.sp)
-        Canvas(Modifier.size(30.dp)) { drawSuit(suit, Offset(size.width / 2, size.height / 2), size.minDimension) }
-        Text(suit.displayName, color = SeppColors.Cream, fontSize = 12.sp)
+        Canvas(Modifier.size(30.dp)) { drawSuit(suit, Offset(size.width / 2, size.height / 2), size.minDimension, cardStyle) }
+        Text(cardStyle.suitName(suit), color = SeppColors.Cream, fontSize = 12.sp)
     }
 }
 
@@ -341,16 +351,14 @@ private fun PointsPanel(state: HandState, showPoints: Boolean, modifier: Modifie
         horizontalAlignment = Alignment.End,
     ) {
         if (showPoints) {
-            val pending = state.pendingMarriagePoints(Seat.PLAYER)
             Text(
-                "Deine Augen: ${state.points(Seat.PLAYER)}" + if (pending > 0) " (+$pending)" else "",
+                "Deine Augen: ${state.points(Seat.PLAYER)}",
                 color = SeppColors.Cream,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
             )
-            val seppPending = state.pendingMarriagePoints(Seat.SEPP)
             Text(
-                "Sepp: ${state.points(Seat.SEPP)}" + if (seppPending > 0) " (+$seppPending)" else "",
+                "Sepp: ${state.points(Seat.SEPP)}",
                 color = SeppColors.Cream.copy(alpha = 0.8f),
                 fontSize = 12.sp,
             )
@@ -360,9 +368,10 @@ private fun PointsPanel(state: HandState, showPoints: Boolean, modifier: Modifie
             color = SeppColors.Cream.copy(alpha = 0.8f),
             fontSize = 12.sp,
         )
+        val cardStyle = LocalCardStyle.current
         state.marriages.forEach { m ->
             Text(
-                "${if (m.seat == Seat.PLAYER) "Du" else "Sepp"}: ${m.points} in ${m.suit.displayName}",
+                "${if (m.seat == Seat.PLAYER) "Du" else "Sepp"}: ${m.points} in ${cardStyle.suitName(m.suit)}",
                 color = SeppColors.Gold,
                 fontSize = 11.sp,
             )
@@ -375,7 +384,7 @@ private fun StatusLine(state: HandState, vm: GameViewModel) {
     val text = vm.hint ?: when {
         state.isOver -> ""
         vm.seppThinking -> "Sepp überlegt…"
-        state.toAct == Seat.PLAYER && state.announcedSuit != null -> "Spiel König oder Ober aus – oder sag \"Aus!\""
+        state.toAct == Seat.PLAYER && state.announcedSuit != null -> "Spiel König oder ${LocalCardStyle.current.rankName(Rank.OBER)} aus"
         state.toAct == Seat.PLAYER && state.leadCard == null -> "Du spielst aus"
         state.toAct == Seat.PLAYER && state.strictRules -> "Gib zu – Farb- und Stichzwang!"
         state.toAct == Seat.PLAYER -> "Gib zu"
@@ -397,15 +406,14 @@ private fun StatusLine(state: HandState, vm: GameViewModel) {
 }
 
 @Composable
-private fun ActionBar(state: HandState, vm: GameViewModel) {
+private fun ActionBar(state: HandState, vm: GameViewModel, cardStyle: CardStyle, onShowLastTrick: () -> Unit) {
     val me = Seat.PLAYER
     val chips = buildList {
         if (Rules.canExchangeTrump(state, me)) add("Atout tauschen" to Action.ExchangeTrump)
         if (Rules.canClose(state, me)) add("Zudrehen" to Action.Close)
         Rules.announceableSuits(state, me).forEach {
-            add("${Rules.marriageValue(state, it)} ansagen (${it.displayName})" to Action.Announce(it))
+            add("${Rules.marriageValue(state, it)} ansagen (${cardStyle.suitName(it)})" to Action.Announce(it))
         }
-        if (!vm.settings.autoClaim && Rules.canClaim(state, me)) add("Aus! (66)" to Action.Claim)
     }
     Row(
         Modifier
@@ -417,6 +425,9 @@ private fun ActionBar(state: HandState, vm: GameViewModel) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         chips.forEach { (label, action) -> GoldButton(label, small = true) { vm.onPlayer(action) } }
+        if (state.lastTrick != null && !state.isOver) {
+            GoldButton("Letzter Stich", small = true, secondary = true, onClick = onShowLastTrick)
+        }
     }
 }
 
@@ -478,7 +489,37 @@ private fun PlayerHand(state: HandState, cardW: Dp, onTap: (Card) -> Unit) {
 }
 
 @Composable
-private fun MarriageDialog(card: Card, value: Int, onAnnounce: () -> Unit, onPlayOnly: () -> Unit, onDismiss: () -> Unit) {
+private fun LastTrickDialog(trick: Trick, cardW: Dp, onDismiss: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        WoodPanel(Modifier.padding(24.dp)) {
+            Text("Letzter Stich", style = androidx.compose.material3.MaterialTheme.typography.titleLarge, color = SeppColors.Gold)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                listOf(trick.leader to trick.lead, trick.leader.other to trick.follow).forEach { (seat, card) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        PlayingCard(card, Modifier.width(cardW).aspectRatio(1f / CARD_RATIO))
+                        Spacer(Modifier.height(4.dp))
+                        Text(if (seat == Seat.PLAYER) "Du" else "Sepp", color = SeppColors.Cream)
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                if (trick.winner == Seat.PLAYER) "Den Stich hast du gemacht." else "Den Stich hat Sepp gemacht.",
+                color = SeppColors.Cream,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MarriageDialog(card: Card, cardStyle: CardStyle, value: Int, onAnnounce: () -> Unit, onPlayOnly: () -> Unit, onDismiss: () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
@@ -494,7 +535,7 @@ private fun MarriageDialog(card: Card, value: Int, onAnnounce: () -> Unit, onPla
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "Du hast König und Ober in ${card.suit.displayName}. Die $value zählen, sobald du einen Stich hast.",
+                "Du hast König und ${cardStyle.rankName(Rank.OBER)} in ${cardStyle.suitName(card.suit)}. Die $value Augen werden sofort gutgeschrieben.",
                 color = SeppColors.Cream,
                 textAlign = TextAlign.Center,
             )
@@ -518,10 +559,9 @@ private fun ResultOverlay(vm: GameViewModel, state: HandState, onShowList: () ->
         else -> "einfach"
     }
     val reasonText = when (r.reason) {
-        HandEndReason.CLAIMED -> if (playerWon) "Du hast mit ${r.winnerPoints} Augen ausgemeldet." else "Sepp hat mit ${r.winnerPoints} Augen ausgemeldet."
+        HandEndReason.REACHED_66 -> if (playerWon) "Du hast ${r.winnerPoints} Augen erreicht." else "Sepp hat ${r.winnerPoints} Augen erreicht."
         HandEndReason.LAST_TRICK -> if (playerWon) "Keiner hatte 66 – dein letzter Stich entscheidet." else "Keiner hatte 66 – Sepp hat den letzten Stich."
         HandEndReason.CLOSER_FAILED -> if (loser == Seat.PLAYER) "Du hast zugedreht, aber keine 66 geschafft." else "Sepp hat zugedreht und keine 66 geschafft."
-        HandEndReason.WRONG_CLAIM -> if (loser == Seat.PLAYER) "Falsch ausgemeldet – du hattest erst ${r.loserPoints} Augen." else "Sepp hat sich verzählt (${r.loserPoints} Augen)."
     }
     Box(
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),

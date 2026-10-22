@@ -44,7 +44,10 @@ import at.schnapsenmitsepp.engine.Card
 import at.schnapsenmitsepp.engine.Rank
 import at.schnapsenmitsepp.engine.Seat
 import at.schnapsenmitsepp.engine.Suit
+import androidx.compose.runtime.CompositionLocalProvider
 import at.schnapsenmitsepp.ui.cards.CARD_RATIO
+import at.schnapsenmitsepp.ui.cards.CardStyle
+import at.schnapsenmitsepp.ui.cards.LocalCardStyle
 import at.schnapsenmitsepp.ui.cards.PlayingCard
 import at.schnapsenmitsepp.ui.theme.SeppColors
 
@@ -166,8 +169,30 @@ internal fun MenuScreen(
                 .background(Color.Black.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 6.dp),
         ) {
-            SettingRow("Automatisch ausmelden", "Bei 66 Augen sagt das Spiel für dich \"Aus!\"", vm.settings.autoClaim) {
-                vm.updateSettings(vm.settings.copy(autoClaim = it))
+            Text("Kartenblatt", color = SeppColors.Cream, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CardStyle.entries.forEach { style ->
+                    val selected = vm.settings.cardStyle == style
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .background(if (selected) SeppColors.Gold.copy(alpha = 0.22f) else Color.Transparent, RoundedCornerShape(10.dp))
+                            .border(if (selected) 2.dp else 1.dp, if (selected) SeppColors.Gold else SeppColors.GoldDark.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                            .clickable { vm.updateSettings(vm.settings.copy(cardStyle = style)) }
+                            .padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        CompositionLocalProvider(LocalCardStyle provides style) {
+                            Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
+                                listOf(Rank.KOENIG, Rank.OBER, Rank.UNTER).forEach { r ->
+                                    PlayingCard(Card(Suit.HERZ, r), Modifier.width(40.dp).aspectRatio(1f / CARD_RATIO), elevation = 2f)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(style.title, color = SeppColors.Cream, fontSize = 13.sp)
+                    }
+                }
             }
             SettingRow("Augen mitzählen", "Zeigt die Augen beider Spieler an", vm.settings.showPoints) {
                 vm.updateSettings(vm.settings.copy(showPoints = it))
@@ -328,24 +353,27 @@ internal fun RulesScreen(onBack: () -> Unit) {
 }
 
 private val RULES = listOf(
-    "Die Karten" to "Gespielt wird mit 20 doppeldeutschen Karten in den Farben Herz, Schell, Eichel und Laub. " +
-        "Werte: Ass 11, Zehner 10, König 4, Ober 3, Unter 2 Augen.",
-    "Ziel" to "Wer zuerst 66 Augen hat und \"Aus!\" sagt, gewinnt das Spiel. Die Augen kommen aus den Stichen und aus angesagten Hochzeiten.",
-    "Geben" to "Jeder bekommt 5 Karten (3 + 2). Dazwischen wird die Atoutkarte (Trumpf) aufgedeckt und quer unter den Talon gelegt. " +
-        "Die Vorhand spielt aus. Nach jedem Stich zieht zuerst der Gewinner, dann der Verlierer eine Karte vom Talon.",
-    "Solange der Talon offen ist" to "Es gibt keinen Farb- oder Stichzwang – du darfst jede Karte zugeben.",
-    "Farb- und Stichzwang" to "Ist der Talon aufgebraucht oder zugedreht, musst du Farbe bekennen und wenn möglich höher stechen. " +
-        "Hast du die Farbe nicht, musst du mit Atout stechen.",
-    "20 und 40" to "Hast du König und Ober einer Farbe, kannst du beim Ausspielen 20 ansagen – in der Atoutfarbe 40. " +
-        "Eine der beiden Karten musst du dann ausspielen. Die Punkte zählen erst, wenn du mindestens einen Stich hast.",
-    "Atout tauschen" to "Wer den Atout-Unter hat, darf ihn beim Ausspielen gegen die aufgedeckte Atoutkarte tauschen, " +
-        "solange der Talon offen ist und noch mindestens 4 Karten darin liegen.",
-    "Zudrehen" to "Beim Ausspielen kannst du den Talon zudrehen (mind. 4 Karten im Talon). Ab dann wird nicht mehr nachgezogen und es gilt Farb- und Stichzwang. " +
-        "Wer zudreht, muss 66 erreichen – sonst bekommt der Gegner 2 Punkte, bzw. 3, wenn er beim Zudrehen noch keinen Stich hatte. " +
-        "Gewinnt der Zudreher, zählt für die Wertung, wie der Gegner beim Zudrehen dagestanden ist.",
-    "Wertung" to "1 Punkt: Der Verlierer hat mindestens 33 Augen.\n2 Punkte (Schneider): Der Verlierer hat weniger als 33 Augen.\n" +
-        "3 Punkte (Schwarz): Der Verlierer hat keinen einzigen Stich.\n" +
-        "Sagt niemand \"Aus!\", gewinnt der letzte Stich. Wer falsch ausmeldet, verliert 2 Punkte (3, wenn der Gegner noch keinen Stich hat).",
-    "Bummerl und Liste" to "Auf der Liste beginnt jeder bei 7 und schreibt seine gewonnenen Punkte herunter. Wer zuerst auf 0 ist, gewinnt – " +
-        "der andere bekommt ein Bummerl. Steht der Verlierer noch auf 7, ist er Schneider und bekommt zwei Bummerl.",
+    "Die Karten" to "Gespielt wird mit 20 Karten: Ass (11 Augen), Zehner (10), König (4), Dame bzw. Ober (3) und Bube bzw. Unter (2) " +
+        "in den Farben Herz, Karo, Pik und Kreuz (doppeldeutsch: Herz, Schell, Laub, Eichel). Zusammen sind das 120 Augen.",
+    "Ziel" to "Wer zuerst 66 Augen aus Stichen und Ansagen sammelt, gewinnt das Spiel. Wer zuerst 7 Spielpunkte hat, gewinnt das Bummerl.",
+    "Geben" to "Die Spieler geben abwechselnd. Jeder bekommt 5 Karten, eine Karte wird aufgedeckt und bestimmt die Atoutfarbe (Trumpf). " +
+        "Der Talon liegt quer darüber, die Atoutkarte zählt als unterste Talonkarte. Wer nicht gegeben hat, spielt aus.",
+    "Stechen" to "Ein Stich geht an die höhere Karte derselben Farbe oder an Atout. Bei verschiedenen Farben ohne Atout gewinnt die ausgespielte Karte. " +
+        "Wer den Stich macht, hebt zuerst vom Talon ab, dann der Gegner, und spielt zum nächsten Stich aus.",
+    "Solange der Talon offen ist" to "Es gibt weder Farb- noch Stichzwang – du darfst jede Karte zugeben.",
+    "Farb- und Stichzwang" to "Ist der Talon aufgebraucht oder zugedreht, musst du: mit einer höheren Karte der angespielten Farbe stechen; " +
+        "geht das nicht, eine niedrigere Karte der Farbe zugeben; hast du die Farbe nicht, mit Atout stechen; sonst beliebig abwerfen. " +
+        "Farbzwang geht vor Stichzwang – mit Atout stechen, obwohl du die Farbe hast, ist verboten.",
+    "20 und 40" to "Hast du König und Dame einer Farbe, kannst du beim Ausspielen ansagen: 20 Augen, in der Atoutfarbe 40. " +
+        "Die Augen werden sofort gutgeschrieben, danach spielst du König oder Dame aus.",
+    "Atout tauschen" to "Wer den Atout-Buben hat, darf ihn beim Ausspielen gegen die offene Atoutkarte unter dem Talon tauschen – " +
+        "solange der Talon offen ist.",
+    "Zudrehen" to "Beim Ausspielen kannst du den Talon zudrehen. Dann wird nicht mehr abgehoben, es gilt Farb- und Stichzwang und Atout tauschen geht nicht mehr. " +
+        "Die Augen des Gegners werden eingefroren: Hatte er beim Zudrehen keinen Stich, bekommst du 3 Punkte, bei 32 oder weniger Augen 2, sonst 1. " +
+        "Schaffst du die 66 nicht, bekommt der Gegner die Punkte, die du bekommen hättest – mindestens 2.",
+    "66 erreicht" to "Hat ein Spieler nach einem Stich oder einer Ansage 66 Augen, endet das Spiel sofort. Wertung:\n" +
+        "3 Punkte: der Gegner hat keinen Stich.\n2 Punkte: der Gegner hat 32 Augen oder weniger.\n1 Punkt: der Gegner hat 33 oder mehr.",
+    "Letzter Stich" to "Erreicht niemand 66, gewinnt der letzte Stich das Spiel. Wurde zugedreht, gilt das nicht – dann hat der Zudreher verloren.",
+    "Bummerl und Liste" to "Wer zuerst 7 Spielpunkte hat, gewinnt; der Verlierer hat das Bummerl. Auf der Liste wird traditionell von 7 heruntergeschrieben. " +
+        "Hat der Verlierer gar keinen Punkt gemacht, bekommt er zwei Bummerl.",
 )

@@ -7,11 +7,12 @@ import at.schnapsenmitsepp.engine.Bummerl
 import at.schnapsenmitsepp.engine.HandEndReason
 import at.schnapsenmitsepp.engine.ListEntry
 import at.schnapsenmitsepp.engine.Seat
+import at.schnapsenmitsepp.ui.cards.CardStyle
 
 data class Settings(
     val difficulty: Difficulty = Difficulty.MITTEL,
-    /** Bei 66 automatisch "Aus!" sagen. */
-    val autoClaim: Boolean = true,
+    /** Französisches (Herz, Karo, Pik, Kreuz) oder doppeldeutsches Blatt. */
+    val cardStyle: CardStyle = CardStyle.FRANZOESISCH,
     /** Augen mitzählen und anzeigen. */
     val showPoints: Boolean = true,
 )
@@ -31,13 +32,13 @@ class ScoreStore(context: Context) {
 
     fun loadSettings() = Settings(
         difficulty = runCatching { Difficulty.valueOf(prefs.getString("difficulty", null)!!) }.getOrDefault(Difficulty.MITTEL),
-        autoClaim = prefs.getBoolean("autoClaim", true),
+        cardStyle = runCatching { CardStyle.valueOf(prefs.getString("cardStyle", null)!!) }.getOrDefault(CardStyle.FRANZOESISCH),
         showPoints = prefs.getBoolean("showPoints", true),
     )
 
     fun saveSettings(s: Settings) = prefs.edit {
         putString("difficulty", s.difficulty.name)
-        putBoolean("autoClaim", s.autoClaim)
+        putString("cardStyle", s.cardStyle.name)
         putBoolean("showPoints", s.showPoints)
     }
 
@@ -61,7 +62,8 @@ class ScoreStore(context: Context) {
             .filter { it.isNotBlank() }
             .mapNotNull { e ->
                 val parts = e.split(':')
-                runCatching { ListEntry(Seat.valueOf(parts[0]), parts[1].toInt(), HandEndReason.valueOf(parts[2])) }.getOrNull()
+                val reason = runCatching { HandEndReason.valueOf(parts[2]) }.getOrDefault(HandEndReason.REACHED_66)
+                runCatching { ListEntry(Seat.valueOf(parts[0]), parts[1].toInt(), reason) }.getOrNull()
             }
         val dealer = runCatching { Seat.valueOf(prefs.getString("nextDealer", null)!!) }.getOrDefault(Seat.SEPP)
         return Bummerl(entries, dealer)

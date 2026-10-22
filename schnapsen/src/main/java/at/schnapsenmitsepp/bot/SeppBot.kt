@@ -33,7 +33,6 @@ class SeppBot(
 
     private fun easy(state: HandState, me: Seat): Action {
         val legal = Rules.legalActions(state, me)
-        if (Action.Claim in legal) return Action.Claim
         if (state.announcedSuit != null || state.leadCard == null) {
             legal.firstOrNull { it is Action.Announce }?.let { return it }
         }
@@ -52,7 +51,6 @@ class SeppBot(
         budget: Long,
         fullSearch: Boolean,
     ): Action {
-        if (Rules.claimIsValid(state, me)) return Action.Claim
         // Hochzeit: welche der beiden Karten spielt man aus?
         if (state.announcedSuit != null) {
             val options = Rules.legalActions(state, me).filterIsInstance<Action.Play>()

@@ -1,7 +1,8 @@
 # Schnapsen mit Sepp
 
-Zweier-Schnapsen nach österreichischen Regeln gegen den Computergegner **Sepp** – mit doppeldeutschen
-Karten (Herz, Schell, Eichel, Laub), Bummerl, Liste, 20/40, Atout tauschen und Zudrehen.
+Zweier-Schnapsen nach österreichischen Regeln (wie auf [schnopsn.com](https://schnopsn.com/schnapsen-regeln))
+gegen den Computergegner **Sepp** – mit französischem Blatt (Herz, Karo, Pik, Kreuz) oder wahlweise
+doppeldeutschen Karten, Bummerl, Liste, 20/40, Atout tauschen und Zudrehen.
 
 Das Projekt ist so aufgebaut, dass es **als eigene App** läuft und **in eine andere Android-App
 eingebunden** werden kann.
@@ -23,7 +24,7 @@ schnapsen/src/main/java/at/schnapsenmitsepp/
 └── SchnapsenActivity.kt  fertige Activity für Host-Apps
 ```
 
-Alle Grafiken (Karten, Kartenrücken mit Edelweiß, Sepp, Filztisch) sind als Vektor-Zeichnungen in
+Alle Grafiken (französische und doppeldeutsche Karten, Kartenrücken mit Edelweiß, Sepp, Filztisch) sind als Vektor-Zeichnungen in
 Compose umgesetzt – keine Bilddateien, in jeder Auflösung scharf.
 
 ## Schwierigkeitsstufen
@@ -40,15 +41,19 @@ Karten, Atout, gezeigte Hochzeiten).
 
 ## Regeln (Kurzfassung)
 
-- 20 Karten, Ass 11 · Zehner 10 · König 4 · Ober 3 · Unter 2. Wer zuerst 66 hat und „Aus!“ sagt, gewinnt.
-- Talon offen: kein Farb-/Stichzwang. Talon zu oder leer: Farbe bekennen, überstechen, sonst Atout.
-- 20/40 beim Ausspielen ansagen; zählt erst ab dem ersten eigenen Stich.
-- Atout-Unter tauschen und Zudrehen beim Ausspielen, solange mindestens 4 Karten im Talon liegen.
-- Wertung: 1 Punkt, 2 (Schneider, Gegner < 33), 3 (Schwarz, Gegner ohne Stich).
-  Beim Zudrehen zählt der Stand des Gegners zum Zeitpunkt des Zudrehens; schafft der Zudreher die 66
-  nicht, bekommt der Gegner 2 bzw. 3 Punkte.
-- Liste: Jeder startet bei 7 und schreibt herunter. Wer auf 0 ist, gewinnt das Bummerl; ist der
-  Verlierer noch auf 7, ist er Schneider und bekommt zwei Bummerl.
+- 20 Karten: Ass 11 · Zehner 10 · König 4 · Dame/Ober 3 · Bube/Unter 2 (zusammen 120 Augen).
+- Talon offen: kein Farb-/Stichzwang. Talon zu oder leer: höher stechen, sonst Farbe zugeben,
+  sonst mit Atout stechen, sonst abwerfen (Farbzwang geht vor Stichzwang).
+- 20/40 beim Ausspielen ansagen – die Augen werden **sofort** gutgeschrieben.
+- Wer nach einem Stich oder einer Ansage **66 Augen** hat, gewinnt **automatisch**.
+- Atout-Bube tauschen und Zudrehen beim Ausspielen, solange der Talon offen ist.
+- Wertung: 3 Punkte (Gegner ohne Stich), 2 (Gegner ≤ 32 Augen), 1 (Gegner ≥ 33).
+- Zudrehen: Die Augen des Gegners werden eingefroren. Schafft der Zudreher die 66 nicht, bekommt der
+  Gegner die Punkte, die der Zudreher bekommen hätte – mindestens 2.
+- Erreicht niemand 66, gewinnt der letzte Stich (nicht nach dem Zudrehen).
+- Bummerl: Wer zuerst 7 Spielpunkte hat, gewinnt. Auf der Liste wird von 7 heruntergeschrieben;
+  hat der Verlierer keinen Punkt, bekommt er zwei Bummerl.
+- Den letzten Stich darf man sich ansehen.
 
 ## Als eigene App bauen
 
@@ -117,5 +122,5 @@ Library haben das Präfix `sms_`, damit es keine Namenskonflikte gibt.
 ./gradlew :schnapsen:testDebugUnitTest
 ```
 
-Die Tests prüfen Regeln (Farbzwang, Stechen, 20/40, Tauschen, Zudrehen, Wertung, Bummerl) und lassen
+Die Tests prüfen Regeln (Farbzwang, Stechen, 20/40, automatisches Ende bei 66, Tauschen, Zudrehen, Wertung, Bummerl) und lassen
 alle Bot-Stufen komplette Spiele gegeneinander spielen.

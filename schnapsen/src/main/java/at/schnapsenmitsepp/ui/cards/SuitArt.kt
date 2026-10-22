@@ -12,11 +12,16 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import at.schnapsenmitsepp.engine.Suit
 import at.schnapsenmitsepp.ui.theme.SeppColors
 
-fun suitColor(suit: Suit): Color = when (suit) {
-    Suit.HERZ -> SeppColors.Herz
-    Suit.SCHELLE -> SeppColors.Schelle
-    Suit.EICHEL -> SeppColors.Eichel
-    Suit.LAUB -> SeppColors.Laub
+private val FrenchBlack = Color(0xFF1F1F24)
+
+fun suitColor(suit: Suit, style: CardStyle = CardStyle.FRANZOESISCH): Color = when (style) {
+    CardStyle.FRANZOESISCH -> if (suit == Suit.HERZ || suit == Suit.SCHELLE) SeppColors.Herz else FrenchBlack
+    CardStyle.DOPPELDEUTSCH -> when (suit) {
+        Suit.HERZ -> SeppColors.Herz
+        Suit.SCHELLE -> SeppColors.Schelle
+        Suit.EICHEL -> SeppColors.Eichel
+        Suit.LAUB -> SeppColors.Laub
+    }
 }
 
 /** Rechnet Einheitskoordinaten (-0.5..0.5) in Pixel um. */
@@ -32,15 +37,84 @@ internal class UnitSpace(val center: Offset, val size: Float) {
     fun Path.q(x1: Float, y1: Float, x2: Float, y2: Float) = quadraticTo(x(x1), y(y1), x(x2), y(y2))
 }
 
-/** Zeichnet ein Farbsymbol der doppeldeutschen Karten (Herz, Schelle, Eichel, Laub). */
-fun DrawScope.drawSuit(suit: Suit, center: Offset, size: Float) {
+/** Zeichnet ein Farbsymbol: französisch (Herz, Karo, Kreuz, Pik) oder doppeldeutsch (Herz, Schell, Eichel, Laub). */
+fun DrawScope.drawSuit(suit: Suit, center: Offset, size: Float, style: CardStyle = CardStyle.FRANZOESISCH) {
     val u = UnitSpace(center, size)
-    when (suit) {
-        Suit.HERZ -> drawHerz(u)
-        Suit.SCHELLE -> drawSchelle(u)
-        Suit.EICHEL -> drawEichel(u)
-        Suit.LAUB -> drawLaub(u)
+    when (style) {
+        CardStyle.FRANZOESISCH -> when (suit) {
+            Suit.HERZ -> drawHerz(u)
+            Suit.SCHELLE -> drawKaro(u)
+            Suit.EICHEL -> drawKreuz(u)
+            Suit.LAUB -> drawPik(u)
+        }
+        CardStyle.DOPPELDEUTSCH -> when (suit) {
+            Suit.HERZ -> drawHerz(u)
+            Suit.SCHELLE -> drawSchelle(u)
+            Suit.EICHEL -> drawEichel(u)
+            Suit.LAUB -> drawLaub(u)
+        }
     }
+}
+
+private fun DrawScope.drawKaro(u: UnitSpace) { with(u) {
+    val p = Path().apply {
+        m(0f, -0.48f)
+        q(0.2f, -0.2f, 0.36f, 0f)
+        q(0.2f, 0.2f, 0f, 0.48f)
+        q(-0.2f, 0.2f, -0.36f, 0f)
+        q(-0.2f, -0.2f, 0f, -0.48f)
+        close()
+    }
+    drawPath(
+        p,
+        Brush.radialGradient(
+            listOf(Color(0xFFFF7070), SeppColors.Herz, Color(0xFF8E1414)),
+            center = o(-0.1f, -0.15f),
+            radius = d(0.6f),
+        ),
+    )
+    drawPath(p, Color(0xFF6D0F0F), style = Stroke(width = d(0.03f)))
+    drawOval(Color.White.copy(alpha = 0.3f), topLeft = o(-0.14f, -0.24f), size = Size(d(0.1f), d(0.14f)))
+}
+}
+
+private val blackGradient = listOf(Color(0xFF5A5A66), Color(0xFF1F1F24), Color(0xFF050507))
+
+private fun DrawScope.drawPik(u: UnitSpace) { with(u) {
+    val p = Path().apply {
+        m(0f, -0.48f)
+        c(0.12f, -0.3f, 0.5f, -0.12f, 0.44f, 0.12f)
+        c(0.4f, 0.3f, 0.16f, 0.32f, 0.04f, 0.2f)
+        q(0.08f, 0.38f, 0.2f, 0.48f)
+        l(-0.2f, 0.48f)
+        q(-0.08f, 0.38f, -0.04f, 0.2f)
+        c(-0.16f, 0.32f, -0.4f, 0.3f, -0.44f, 0.12f)
+        c(-0.5f, -0.12f, -0.12f, -0.3f, 0f, -0.48f)
+        close()
+    }
+    drawPath(p, Brush.radialGradient(blackGradient, center = o(-0.14f, -0.12f), radius = d(0.65f)))
+    drawOval(Color.White.copy(alpha = 0.22f), topLeft = o(-0.3f, -0.12f), size = Size(d(0.12f), d(0.16f)))
+}
+}
+
+private fun DrawScope.drawKreuz(u: UnitSpace) { with(u) {
+    val brush = Brush.radialGradient(blackGradient, center = o(-0.12f, -0.2f), radius = d(0.7f))
+    val stem = Path().apply {
+        m(-0.04f, 0.08f)
+        q(-0.06f, 0.36f, -0.2f, 0.48f)
+        l(0.2f, 0.48f)
+        q(0.06f, 0.36f, 0.04f, 0.08f)
+        close()
+    }
+    drawPath(stem, brush)
+    drawCircle(brush, radius = d(0.2f), center = o(0f, -0.26f))
+    drawCircle(brush, radius = d(0.2f), center = o(-0.24f, 0.08f))
+    drawCircle(brush, radius = d(0.2f), center = o(0.24f, 0.08f))
+    drawCircle(Color(0xFF1F1F24), radius = d(0.12f), center = o(0f, 0.0f))
+    for ((x, y) in listOf(0f to -0.32f, -0.3f to 0.02f, 0.18f to 0.02f)) {
+        drawOval(Color.White.copy(alpha = 0.22f), topLeft = o(x - 0.03f, y), size = Size(d(0.08f), d(0.1f)))
+    }
+}
 }
 
 private fun DrawScope.drawHerz(u: UnitSpace) { with(u) {

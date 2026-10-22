@@ -1,18 +1,17 @@
 package at.schnapsenmitsepp.engine
 
 /**
- * Regeln für das österreichische Zweier-Schnapsen (20 Karten, 66 Augen).
+ * Regeln für das österreichische Zweier-Schnapsen (20 Karten, 66 Augen), wie auf
+ * schnopsn.com/schnapsen-regeln beschrieben:
  *
  * - Solange der Talon offen ist, besteht weder Farb- noch Stichzwang.
- * - Nach dem Zudrehen oder wenn der Talon aufgebraucht ist: Farbe bekennen, wenn möglich überstechen,
- *   sonst mit Trumpf stechen.
- * - 20 (Hochzeit) bzw. 40 (Trumpf-Hochzeit) darf nur ansagen, wer ausspielt. Die Punkte zählen erst
- *   mit dem ersten eigenen Stich.
- * - Trumpf-Unter tauschen und Zudrehen nur, wenn man ausspielt und noch mindestens 4 Karten im Talon sind.
+ * - Nach dem Zudrehen oder wenn der Talon aufgebraucht ist: mit höherer Karte der Farbe stechen,
+ *   sonst niedrigere Karte der Farbe zugeben, sonst mit Atout stechen, sonst beliebig abwerfen.
+ * - 20 bzw. 40 (Atout-Paar) sagt an, wer ausspielt; die Augen werden sofort gutgeschrieben.
+ * - Wer nach einem Stich oder einer Ansage 66 Augen hat, gewinnt sofort.
+ * - Atout-Bube tauschen und Zudrehen beim Ausspielen, solange der Talon offen ist.
  */
 object Rules {
-
-    private const val MIN_TALON_FOR_CLOSE_OR_EXCHANGE = 4
 
     fun marriageValue(state: HandState, suit: Suit): Int = if (suit == state.trumpSuit) 40 else 20
 
@@ -22,14 +21,12 @@ object Rules {
         isLeadingFresh(state, seat) &&
             !state.isClosed &&
             state.trumpCard != null &&
-            state.talonSize >= MIN_TALON_FOR_CLOSE_OR_EXCHANGE &&
             trumpUnter(state) in state.hand(seat)
 
     fun canClose(state: HandState, seat: Seat): Boolean =
         isLeadingFresh(state, seat) &&
             !state.isClosed &&
-            state.trumpCard != null &&
-            state.talonSize >= MIN_TALON_FOR_CLOSE_OR_EXCHANGE
+            state.trumpCard != null
 
     /** Farben, in denen [seat] gerade 20/40 ansagen kann. */
     fun announceableSuits(state: HandState, seat: Seat): List<Suit> {
@@ -37,13 +34,6 @@ object Rules {
         val hand = state.hand(seat)
         return Suit.entries.filter { Card(it, Rank.KOENIG) in hand && Card(it, Rank.OBER) in hand }
     }
-
-    fun canClaim(state: HandState, seat: Seat): Boolean =
-        state.toAct == seat && state.leadCard == null
-
-    /** Darf [seat] gerade mit "Aus!" richtig ausmelden (mind. 66 gezählte Augen)? */
-    fun claimIsValid(state: HandState, seat: Seat): Boolean =
-        canClaim(state, seat) && state.points(seat) >= HandState.WINNING_POINTS
 
     private fun isLeadingFresh(state: HandState, seat: Seat): Boolean =
         state.toAct == seat && state.leadCard == null && state.announcedSuit == null
@@ -70,11 +60,10 @@ object Rules {
         return hand
     }
 
-    /** Alle erlaubten Aktionen. Ein falsches "Aus!" ist zwar erlaubt, wird hier aber nicht angeboten. */
+    /** Alle erlaubten Aktionen für [seat]. */
     fun legalActions(state: HandState, seat: Seat): List<Action> {
         if (state.toAct != seat) return emptyList()
         val actions = mutableListOf<Action>()
-        if (claimIsValid(state, seat)) actions += Action.Claim
         if (canExchangeTrump(state, seat)) actions += Action.ExchangeTrump
         if (canClose(state, seat)) actions += Action.Close
         announceableSuits(state, seat).forEach { actions += Action.Announce(it) }
@@ -93,7 +82,6 @@ object Rules {
         is Action.Announce -> action.suit in announceableSuits(state, seat)
         Action.ExchangeTrump -> canExchangeTrump(state, seat)
         Action.Close -> canClose(state, seat)
-        Action.Claim -> canClaim(state, seat)
     }
 
     /**
@@ -111,7 +99,6 @@ object Rules {
             Action.Close -> state.copy(
                 closed = CloseSnapshot(seat, state.points(seat.other), state.tricks(seat.other)),
             )
-            Action.Claim -> claim(state, seat)
         }
     }
 
@@ -134,7 +121,7 @@ object Rules {
     private fun announce(state: HandState, seat: Seat, suit: Suit): HandState {
         val value = marriageValue(state, suit)
         val i = seat.ordinal
-        return state.copy(
+        val next = state.copy(
             announcedSuit = suit,
             marriagePoints = state.marriagePoints.replaceAt(i, state.marriagePoints[i] + value),
             marriages = state.marriages + Marriage(seat, suit, value),
@@ -143,6 +130,7 @@ object Rules {
                 state.revealed[i] + Card(suit, Rank.KOENIG) + Card(suit, Rank.OBER),
             ),
         )
+        return if (next.points(seat) >= HandState.WINNING_POINTS) finishWith66(next, seat) else next
     }
 
     private fun exchange(state: HandState, seat: Seat): HandState {
@@ -193,18 +181,22 @@ object Rules {
             won = state.won.replace(winner, state.won[w] + lead + follow),
             lastTrick = Trick(state.leader, lead, follow, winner),
         )
-        return if (next.hands.all { it.isEmpty() }) finishWithoutClaim(next, winner) else next
+        return when {
+            next.points(winner) >= HandState.WINNING_POINTS -> finishWith66(next, winner)
+            next.hands.all { it.isEmpty() } -> finishWithout66(next, winner)
+            else -> next
+        }
     }
 
-    private fun finishWithoutClaim(state: HandState, lastTrickWinner: Seat): HandState {
+    private fun finishWithout66(state: HandState, lastTrickWinner: Seat): HandState {
         val closed = state.closed
         if (closed != null) {
-            // Wer zugedreht hat und nicht ausgemeldet hat, verliert.
+            // Nach dem Zudrehen entscheidet nicht der letzte Stich: der Zudreher hat verloren.
             val winner = closed.closer.other
             return state.copy(
                 result = HandResult(
                     winner = winner,
-                    gamePoints = maxOf(closerPenalty(closed), normalGamePoints(state, closed.closer)),
+                    gamePoints = closerPenalty(closed),
                     reason = HandEndReason.CLOSER_FAILED,
                     winnerPoints = state.points(winner),
                     loserPoints = state.points(closed.closer),
@@ -223,29 +215,25 @@ object Rules {
         )
     }
 
-    private fun claim(state: HandState, seat: Seat): HandState {
+    /** [seat] hat 66 erreicht – das Spiel endet sofort. */
+    private fun finishWith66(state: HandState, seat: Seat): HandState {
         val other = seat.other
         val closed = state.closed
-        if (state.points(seat) < HandState.WINNING_POINTS) {
-            val points = if (state.tricks(other) == 0) 3 else 2
-            return state.copy(
-                result = HandResult(other, points, HandEndReason.WRONG_CLAIM, state.points(other), state.points(seat)),
-            )
-        }
         val gamePoints = when {
             closed == null -> normalGamePoints(state, other)
-            // Zudreher gewinnt: es zählt, wie der Gegner beim Zudrehen dastand.
+            // Zudreher gewinnt: die Augen des Gegners sind beim Zudrehen eingefroren.
             closed.closer == seat -> gamePointsFor(closed.opponentPoints, closed.opponentTricks)
-            // Gegner des Zudrehers erreicht die 66 zuerst.
-            else -> maxOf(closerPenalty(closed), normalGamePoints(state, other))
+            // Der Gegner des Zudrehers erreicht die 66 zuerst.
+            else -> closerPenalty(closed)
         }
         return state.copy(
-            result = HandResult(seat, gamePoints, HandEndReason.CLAIMED, state.points(seat), state.points(other)),
+            result = HandResult(seat, gamePoints, HandEndReason.REACHED_66, state.points(seat), state.points(other)),
         )
     }
 
-    private fun closerPenalty(closed: CloseSnapshot): Int = if (closed.opponentTricks == 0) 3 else 2
-
+    /** Scheitert der Zudreher, bekommt der Gegner die Punkte, die der Zudreher bekommen hätte – mindestens 2. */
+    private fun closerPenalty(closed: CloseSnapshot): Int =
+        maxOf(2, gamePointsFor(closed.opponentPoints, closed.opponentTricks))
     private fun normalGamePoints(state: HandState, loser: Seat): Int =
         gamePointsFor(state.points(loser), state.tricks(loser))
 

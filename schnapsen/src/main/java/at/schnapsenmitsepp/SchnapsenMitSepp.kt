@@ -20,7 +20,9 @@ import at.schnapsenmitsepp.ui.GameViewModel
 import at.schnapsenmitsepp.ui.ListScreen
 import at.schnapsenmitsepp.ui.MenuScreen
 import at.schnapsenmitsepp.ui.RulesScreen
+import at.schnapsenmitsepp.ui.cards.LocalCardStyle
 import at.schnapsenmitsepp.ui.feltBackground
+import androidx.compose.runtime.CompositionLocalProvider
 import at.schnapsenmitsepp.ui.theme.SeppTheme
 
 /**
@@ -61,6 +63,7 @@ fun SchnapsenMitSeppGame(modifier: Modifier = Modifier, onExit: (() -> Unit)? = 
     }
 
     SeppTheme {
+        CompositionLocalProvider(LocalCardStyle provides vm.settings.cardStyle) {
         Box(modifier.fillMaxSize().feltBackground().windowInsetsPadding(WindowInsets.safeDrawing)) {
             when (screen) {
                 Screen.MENU -> MenuScreen(
@@ -78,6 +81,7 @@ fun SchnapsenMitSeppGame(modifier: Modifier = Modifier, onExit: (() -> Unit)? = 
                 Screen.LIST -> ListScreen(vm, onBack = { screen = if (vm.hand != null) Screen.GAME else Screen.MENU })
                 Screen.RULES -> RulesScreen(onBack = { screen = Screen.MENU })
             }
+        }
         }
     }
 }

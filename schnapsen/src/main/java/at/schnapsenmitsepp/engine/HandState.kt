@@ -15,9 +15,6 @@ sealed interface Action {
 
     /** Zudrehen: Der Talon wird geschlossen, ab jetzt gilt Farb- und Stichzwang. */
     data object Close : Action
-
-    /** "Aus!" – der Spieler meldet, dass er 66 Augen hat. */
-    data object Claim : Action
 }
 
 data class Trick(val leader: Seat, val lead: Card, val follow: Card, val winner: Seat)
@@ -25,17 +22,14 @@ data class Trick(val leader: Seat, val lead: Card, val follow: Card, val winner:
 data class Marriage(val seat: Seat, val suit: Suit, val points: Int)
 
 enum class HandEndReason {
-    /** Ein Spieler hat richtig mit 66 ausgemeldet. */
-    CLAIMED,
+    /** Ein Spieler hat nach einem Stich oder einer Ansage 66 Augen erreicht. */
+    REACHED_66,
 
-    /** Niemand hat ausgemeldet, der letzte Stich entscheidet. */
+    /** Niemand hat 66 erreicht, der letzte Stich entscheidet. */
     LAST_TRICK,
 
     /** Wer zugedreht hat, hat die 66 nicht erreicht. */
     CLOSER_FAILED,
-
-    /** Falsch ausgemeldet (weniger als 66). */
-    WRONG_CLAIM,
 }
 
 data class HandResult(
@@ -81,13 +75,8 @@ data class HandState(
     fun tricks(seat: Seat): Int = trickCounts[seat.ordinal]
     fun wonCards(seat: Seat): List<Card> = won[seat.ordinal]
 
-    /** Gezählte Augen: Stiche plus Hochzeiten – Hochzeiten zählen erst, wenn man einen Stich hat. */
-    fun points(seat: Seat): Int =
-        cardPoints[seat.ordinal] + if (trickCounts[seat.ordinal] > 0) marriagePoints[seat.ordinal] else 0
-
-    /** Angesagte, aber mangels Stich noch nicht gezählte Hochzeitspunkte. */
-    fun pendingMarriagePoints(seat: Seat): Int =
-        if (trickCounts[seat.ordinal] > 0) 0 else marriagePoints[seat.ordinal]
+    /** Augen: Stiche plus Ansagen (20/40 werden sofort gutgeschrieben). */
+    fun points(seat: Seat): Int = cardPoints[seat.ordinal] + marriagePoints[seat.ordinal]
 
     val talonSize: Int get() = stock.size + if (trumpCard != null) 1 else 0
     val isClosed: Boolean get() = closed != null
@@ -111,8 +100,8 @@ data class HandState(
         const val WINNING_POINTS = 66
 
         /**
-         * Teilt nach österreichischer Art aus: 3 Karten an jeden, Atout aufdecken, dann 2 an jeden.
-         * Die Vorhand (nicht der Geber) spielt aus.
+         * Teilt aus: 3 Karten an jeden, Atout aufdecken, dann 2 an jeden. Die Atoutkarte liegt quer
+         * unter dem Talon und zählt als unterste Talonkarte. Wer nicht gegeben hat, spielt aus.
          */
         fun deal(dealer: Seat, random: Random = Random.Default): HandState {
             val deck = Card.DECK.shuffled(random)

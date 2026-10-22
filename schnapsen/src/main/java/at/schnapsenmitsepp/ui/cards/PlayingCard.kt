@@ -45,8 +45,9 @@ fun PlayingCard(
     elevation: Float = 4f,
 ) {
     val textMeasurer = rememberTextMeasurer()
+    val style = LocalCardStyle.current
     Canvas(modifier.shadow(elevation.dp, RoundedCornerShape(8))) {
-        if (faceUp && card != null) drawCardFace(card, textMeasurer) else drawCardBack()
+        if (faceUp && card != null) drawCardFace(card, textMeasurer, style) else drawCardBack()
         val r = CornerRadius(size.width * 0.08f)
         if (highlighted) {
             drawRoundRect(SeppColors.Gold, cornerRadius = r, style = Stroke(width = size.width * 0.045f))
@@ -55,11 +56,11 @@ fun PlayingCard(
     }
 }
 
-fun DrawScope.drawCardFace(card: Card, textMeasurer: TextMeasurer) {
+fun DrawScope.drawCardFace(card: Card, textMeasurer: TextMeasurer, style: CardStyle = CardStyle.FRANZOESISCH) {
     val w = size.width
     val h = size.height
     val corner = CornerRadius(w * 0.08f)
-    val color = suitColor(card.suit)
+    val color = suitColor(card.suit, style)
 
     drawRoundRect(
         Brush.verticalGradient(listOf(SeppColors.Cream, SeppColors.CreamDark)),
@@ -75,37 +76,37 @@ fun DrawScope.drawCardFace(card: Card, textMeasurer: TextMeasurer) {
         style = Stroke(width = w * 0.01f),
     )
 
-    drawCornerIndex(card, textMeasurer)
-    rotate(180f) { drawCornerIndex(card, textMeasurer) }
+    drawCornerIndex(card, textMeasurer, style)
+    rotate(180f) { drawCornerIndex(card, textMeasurer, style) }
 
     when (card.rank) {
-        Rank.ASS -> drawAce(card)
-        Rank.ZEHN -> drawTen(card)
-        else -> drawFigure(card)
+        Rank.ASS -> drawAce(card, style)
+        Rank.ZEHN -> drawTen(card, style)
+        else -> drawFigure(card, style)
     }
 }
 
-private fun DrawScope.drawCornerIndex(card: Card, textMeasurer: TextMeasurer) {
+private fun DrawScope.drawCornerIndex(card: Card, textMeasurer: TextMeasurer, cardStyle: CardStyle) {
     val w = size.width
     val style = TextStyle(
-        color = SeppColors.Ink,
+        color = if (cardStyle == CardStyle.FRANZOESISCH) suitColor(card.suit, cardStyle) else SeppColors.Ink,
         fontSize = (w * 0.19f).toSp(),
         fontWeight = FontWeight.Bold,
         fontFamily = FontFamily.Serif,
     )
-    val layout = textMeasurer.measure(card.rank.symbol, style)
+    val layout = textMeasurer.measure(cardStyle.rankSymbol(card.rank), style)
     val left = w * 0.075f
     val top = w * 0.04f
     drawText(layout, topLeft = Offset(left, top))
     val cx = left + layout.size.width / 2f
-    drawSuit(card.suit, Offset(cx, top + layout.size.height + w * 0.06f), w * 0.15f)
+    drawSuit(card.suit, Offset(cx, top + layout.size.height + w * 0.06f), w * 0.15f, cardStyle)
 }
 
-private fun DrawScope.drawAce(card: Card) {
+private fun DrawScope.drawAce(card: Card, style: CardStyle) {
     val w = size.width
     val h = size.height
     val c = Offset(w / 2, h / 2)
-    val color = suitColor(card.suit)
+    val color = suitColor(card.suit, style)
     // Ornament-Oval hinter dem großen Symbol
     drawOval(
         Brush.radialGradient(listOf(color.copy(alpha = 0.18f), Color.Transparent), center = c, radius = w * 0.45f),
@@ -126,10 +127,10 @@ private fun DrawScope.drawAce(card: Card) {
         drawCircle(SeppColors.GoldDark, radius = w * 0.013f, center = Offset(w * 0.32f, y))
         drawCircle(SeppColors.GoldDark, radius = w * 0.013f, center = Offset(w * 0.68f, y))
     }
-    drawSuit(card.suit, c, w * 0.56f)
+    drawSuit(card.suit, c, w * 0.56f, style)
 }
 
-private fun DrawScope.drawTen(card: Card) {
+private fun DrawScope.drawTen(card: Card, style: CardStyle) {
     val w = size.width
     val h = size.height
     val pip = w * 0.19f
@@ -145,15 +146,15 @@ private fun DrawScope.drawTen(card: Card) {
         add(Offset(w * 0.5f, top + span * 5f / 6f))
     }
     for (p in positions) {
-        if (p.y > h / 2) rotate(180f, pivot = p) { drawSuit(card.suit, p, pip) } else drawSuit(card.suit, p, pip)
+        if (p.y > h / 2) rotate(180f, pivot = p) { drawSuit(card.suit, p, pip, style) } else drawSuit(card.suit, p, pip, style)
     }
 }
 
 /** Doppelköpfige Figur wie auf den echten Karten: obere Hälfte zeichnen, dann um 180° gedreht wiederholen. */
-private fun DrawScope.drawFigure(card: Card) {
+private fun DrawScope.drawFigure(card: Card, style: CardStyle) {
     val w = size.width
     val h = size.height
-    val color = suitColor(card.suit)
+    val color = suitColor(card.suit, style)
     val left = w * 0.22f
     val right = w * 0.78f
     val top = h * 0.085f
@@ -168,9 +169,9 @@ private fun DrawScope.drawFigure(card: Card) {
         cornerRadius = panelCorner,
     )
     val half = (bottom - top) / 2f
-    clipRect(left, top, right, top + half) { drawFigureHalf(card, left, top, panelW, half) }
+    clipRect(left, top, right, top + half) { drawFigureHalf(card, style, left, top, panelW, half) }
     rotate(180f) {
-        clipRect(left, top, right, top + half) { drawFigureHalf(card, left, top, panelW, half) }
+        clipRect(left, top, right, top + half) { drawFigureHalf(card, style, left, top, panelW, half) }
     }
     drawLine(SeppColors.GoldDark, Offset(left, h / 2), Offset(right, h / 2), strokeWidth = w * 0.012f)
     drawRoundRect(
@@ -185,8 +186,9 @@ private fun DrawScope.drawFigure(card: Card) {
 private val Skin = Color(0xFFF2C6A0)
 private val SkinShade = Color(0xFFD9A07A)
 
-private fun DrawScope.drawFigureHalf(card: Card, left: Float, top: Float, pw: Float, half: Float) {
-    val color = suitColor(card.suit)
+private fun DrawScope.drawFigureHalf(card: Card, style: CardStyle, left: Float, top: Float, pw: Float, half: Float) {
+    val color = suitColor(card.suit, style)
+    val queen = style == CardStyle.FRANZOESISCH && card.rank == Rank.OBER
     val dark = lerp(color, Color.Black, 0.35f)
     val cx = left + pw / 2
     val headY = top + half * 0.42f
@@ -209,6 +211,14 @@ private fun DrawScope.drawFigureHalf(card: Card, left: Float, top: Float, pw: Fl
     drawOval(Color.White, topLeft = Offset(cx - pw * 0.2f, headY + headR * 0.8f), size = Size(pw * 0.4f, headR * 0.6f))
     drawOval(SeppColors.Ink.copy(alpha = 0.3f), topLeft = Offset(cx - pw * 0.2f, headY + headR * 0.8f), size = Size(pw * 0.4f, headR * 0.6f), style = Stroke(pw * 0.012f))
 
+    if (queen) {
+        // Lange Haare hinter dem Kopf
+        drawOval(
+            Color(0xFF8A5A2B),
+            topLeft = Offset(cx - headR * 1.35f, headY - headR * 1.15f),
+            size = Size(headR * 2.7f, headR * 3.0f),
+        )
+    }
     // Kopf
     drawCircle(Skin, radius = headR, center = Offset(cx, headY))
     drawCircle(SkinShade, radius = headR, center = Offset(cx, headY), style = Stroke(pw * 0.015f))
@@ -246,7 +256,9 @@ private fun DrawScope.drawFigureHalf(card: Card, left: Float, top: Float, pw: Fl
             drawCircle(Color(0xFF1565C0), radius = pw * 0.02f, center = Offset(cx - headR * 0.55f, headY - headR * 0.95f))
             drawCircle(Color(0xFF1565C0), radius = pw * 0.02f, center = Offset(cx + headR * 0.55f, headY - headR * 0.95f))
         }
-        Rank.OBER -> {
+        Rank.OBER -> if (queen) {
+            drawQueenHead(cx, headY, headR, pw)
+        } else {
             // Schnurrbart
             drawMustache(cx, headY + headR * 0.35f, headR, Color(0xFF5A3A1E))
             // Hut mit Feder
@@ -294,7 +306,36 @@ private fun DrawScope.drawFigureHalf(card: Card, left: Float, top: Float, pw: Fl
     val emblemCenter = Offset(left + pw * 0.8f, top + half * 0.74f)
     drawCircle(SeppColors.Cream, radius = pw * 0.13f, center = emblemCenter)
     drawCircle(SeppColors.GoldDark, radius = pw * 0.13f, center = emblemCenter, style = Stroke(pw * 0.012f))
-    drawSuit(card.suit, emblemCenter, pw * 0.2f)
+    drawSuit(card.suit, emblemCenter, pw * 0.2f, style)
+}
+
+/** Dame: Pony, kleines Diadem und rote Lippen. */
+private fun DrawScope.drawQueenHead(cx: Float, headY: Float, headR: Float, pw: Float) {
+    drawArc(
+        Color(0xFF8A5A2B),
+        startAngle = 180f,
+        sweepAngle = 180f,
+        useCenter = true,
+        topLeft = Offset(cx - headR, headY - headR * 1.05f),
+        size = Size(headR * 2f, headR * 1.3f),
+    )
+    val tiara = Path().apply {
+        moveTo(cx - headR * 0.7f, headY - headR * 0.85f)
+        lineTo(cx - headR * 0.4f, headY - headR * 1.35f)
+        lineTo(cx - headR * 0.15f, headY - headR * 1.0f)
+        lineTo(cx, headY - headR * 1.55f)
+        lineTo(cx + headR * 0.15f, headY - headR * 1.0f)
+        lineTo(cx + headR * 0.4f, headY - headR * 1.35f)
+        lineTo(cx + headR * 0.7f, headY - headR * 0.85f)
+        close()
+    }
+    drawPath(tiara, Brush.verticalGradient(listOf(Color(0xFFFFE9A0), SeppColors.Gold, SeppColors.GoldDark)))
+    drawPath(tiara, Color(0xFF7A5A1C), style = Stroke(pw * 0.012f))
+    drawCircle(SeppColors.Herz, radius = pw * 0.02f, center = Offset(cx, headY - headR * 1.2f))
+    drawOval(Color(0xFFC62828), topLeft = Offset(cx - headR * 0.25f, headY + headR * 0.42f), size = Size(headR * 0.5f, headR * 0.2f))
+    // Ohrringe
+    drawCircle(SeppColors.Gold, radius = pw * 0.018f, center = Offset(cx - headR * 1.0f, headY + headR * 0.35f))
+    drawCircle(SeppColors.Gold, radius = pw * 0.018f, center = Offset(cx + headR * 1.0f, headY + headR * 0.35f))
 }
 
 private fun DrawScope.drawMustache(cx: Float, y: Float, headR: Float, color: Color) {

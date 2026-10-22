@@ -79,21 +79,42 @@ class RulesTest {
     }
 
     @Test
-    fun marriageCountsOnlyAfterFirstTrick() {
-        var s = fixture(
+    fun marriageIsCreditedImmediately() {
+        val s = fixture(
             player = listOf(c(Suit.LAUB, Rank.KOENIG), c(Suit.LAUB, Rank.OBER), c(Suit.HERZ, Rank.ASS)),
             sepp = listOf(c(Suit.LAUB, Rank.ASS), c(Suit.EICHEL, Rank.UNTER), c(Suit.EICHEL, Rank.OBER)),
         )
-        s = Rules.apply(s, Action.Announce(Suit.LAUB))
-        assertEquals(0, s.points(Seat.PLAYER))
-        assertEquals(20, s.pendingMarriagePoints(Seat.PLAYER))
-        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.OBER)))
-        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.ASS))) // Sepp sticht mit dem Ass
-        assertEquals(0, s.points(Seat.PLAYER))
-        assertEquals(14, s.points(Seat.SEPP))
-        s = Rules.applyAndCollect(s, Action.Play(c(Suit.EICHEL, Rank.UNTER)))
-        s = Rules.applyAndCollect(s, Action.Play(c(Suit.HERZ, Rank.ASS)))
-        assertEquals(20 + 13, s.points(Seat.PLAYER))
+        val after = Rules.apply(s, Action.Announce(Suit.LAUB))
+        assertEquals(20, after.points(Seat.PLAYER))
+        assertEquals(
+            setOf(c(Suit.LAUB, Rank.KOENIG), c(Suit.LAUB, Rank.OBER)),
+            Rules.legalCards(after, Seat.PLAYER).toSet(),
+        )
+    }
+
+    @Test
+    fun reaching66AfterTrickEndsGameAutomatically() {
+        var s = fixture(
+            player = listOf(c(Suit.LAUB, Rank.ASS), c(Suit.EICHEL, Rank.UNTER)),
+            sepp = listOf(c(Suit.LAUB, Rank.ZEHN), c(Suit.EICHEL, Rank.OBER)),
+        ).copy(cardPoints = listOf(45, 20), trickCounts = listOf(2, 1))
+        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.ASS)))
+        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.ZEHN)))
+        val r = s.result!!
+        assertEquals(Seat.PLAYER, r.winner)
+        assertEquals(HandEndReason.REACHED_66, r.reason)
+        assertEquals(2, r.gamePoints) // Sepp hat 20 Augen
+    }
+
+    @Test
+    fun reaching66ByAnnouncementEndsGame() {
+        val s = fixture(
+            player = listOf(c(Suit.HERZ, Rank.KOENIG), c(Suit.HERZ, Rank.OBER)),
+            sepp = listOf(c(Suit.LAUB, Rank.ASS), c(Suit.EICHEL, Rank.UNTER)),
+        ).copy(cardPoints = listOf(30, 40), trickCounts = listOf(2, 3))
+        val r = Rules.apply(s, Action.Announce(Suit.HERZ)).result!!
+        assertEquals(Seat.PLAYER, r.winner)
+        assertEquals(1, r.gamePoints)
     }
 
     @Test
@@ -131,8 +152,7 @@ class RulesTest {
         assertTrue(s.strictRules)
         s = Rules.applyAndCollect(s, Action.Play(c(Suit.HERZ, Rank.ASS)))
         s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.UNTER)))
-        assertEquals(1, s.hand(Seat.PLAYER).size) // nach dem Zudrehen wird nicht mehr nachgezogen
-        s = Rules.apply(s, Action.Claim)
+        // 60 + 11 + 2 = 73 Augen → Spiel endet automatisch
         assertEquals(Seat.PLAYER, s.result!!.winner)
         assertEquals(3, s.result!!.gamePoints) // Sepp hatte beim Zudrehen keinen Stich
     }
@@ -145,23 +165,64 @@ class RulesTest {
     }
 
     @Test
-    fun wrongClaimLoses() {
-        val s = fixture(
-            player = listOf(c(Suit.LAUB, Rank.KOENIG)),
-            sepp = listOf(c(Suit.LAUB, Rank.UNTER)),
-        )
-        val r = Rules.apply(s, Action.Claim).result!!
+    fun closerWhoFailsGivesOpponentAtLeastTwo() {
+        val player = listOf(c(Suit.LAUB, Rank.UNTER))
+        val sepp = listOf(c(Suit.LAUB, Rank.ASS))
+        val stock = (Card.DECK - player.toSet() - sepp.toSet()).take(2)
+        var s = fixture(player, sepp, stock = stock.drop(1), trumpCard = stock.first())
+            .copy(cardPoints = listOf(30, 40), trickCounts = listOf(2, 2))
+        s = Rules.apply(s, Action.Close)
+        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.UNTER)))
+        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.ASS)))
+        val r = s.result!!
         assertEquals(Seat.SEPP, r.winner)
-        assertEquals(HandEndReason.WRONG_CLAIM, r.reason)
+        assertEquals(HandEndReason.CLOSER_FAILED, r.reason)
+        assertEquals(2, r.gamePoints) // Zudreher hätte 1 bekommen, mindestens aber 2
+    }
+
+    @Test
+    fun lastTrickWinsWithoutClose() {
+        var s = fixture(
+            player = listOf(c(Suit.LAUB, Rank.UNTER)),
+            sepp = listOf(c(Suit.LAUB, Rank.OBER)),
+        ).copy(cardPoints = listOf(60, 55), trickCounts = listOf(4, 5))
+        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.UNTER)))
+        s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.OBER)))
+        assertEquals(Seat.SEPP, s.result!!.winner)
+        assertEquals(HandEndReason.LAST_TRICK, s.result!!.reason)
+    }
+
+    @Test
+    fun farbzwangBeforeTrump() {
+        // Beispiel von schnopsn.com: Herz Atout, Laub-Ass gespielt, man hält Laub-Unter und Herz-Ass.
+        var s = fixture(
+            player = listOf(c(Suit.LAUB, Rank.ASS)),
+            sepp = listOf(c(Suit.LAUB, Rank.UNTER), c(Suit.HERZ, Rank.ASS)),
+        )
+        s = Rules.apply(s, Action.Play(c(Suit.LAUB, Rank.ASS)))
+        assertEquals(listOf(c(Suit.LAUB, Rank.UNTER)), Rules.legalCards(s, Seat.SEPP))
+    }
+
+    @Test
+    fun closeAndExchangeAllowedWhileTalonOpen() {
+        val unter = c(Suit.HERZ, Rank.UNTER)
+        val player = listOf(unter, c(Suit.LAUB, Rank.KOENIG))
+        val sepp = listOf(c(Suit.LAUB, Rank.UNTER), c(Suit.EICHEL, Rank.UNTER))
+        val stock = (Card.DECK - player.toSet() - sepp.toSet() - c(Suit.HERZ, Rank.ASS)).take(1)
+        val s = fixture(player, sepp, stock = stock, trumpCard = c(Suit.HERZ, Rank.ASS))
+        assertEquals(2, s.talonSize)
+        assertTrue(Rules.canExchangeTrump(s, Seat.PLAYER))
+        assertTrue(Rules.canClose(s, Seat.PLAYER))
+        assertFalse(Rules.canExchangeTrump(Rules.apply(s, Action.Close), Seat.PLAYER))
     }
 
     @Test
     fun bummerlCountsDown() {
         var b = Bummerl()
-        b = b.record(HandResult(Seat.PLAYER, 3, HandEndReason.CLAIMED, 70, 0))
-        b = b.record(HandResult(Seat.PLAYER, 3, HandEndReason.CLAIMED, 70, 0))
+        b = b.record(HandResult(Seat.PLAYER, 3, HandEndReason.REACHED_66, 70, 0))
+        b = b.record(HandResult(Seat.PLAYER, 3, HandEndReason.REACHED_66, 70, 0))
         assertFalse(b.isFinished)
-        b = b.record(HandResult(Seat.PLAYER, 2, HandEndReason.CLAIMED, 70, 10))
+        b = b.record(HandResult(Seat.PLAYER, 2, HandEndReason.REACHED_66, 70, 10))
         assertEquals(Seat.PLAYER, b.winner)
         assertEquals(2, b.bummerlCount) // Sepp ist Schneider
         assertEquals(listOf(4 to 7, 1 to 7, 0 to 7), b.runningTotals())
