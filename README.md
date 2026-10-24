@@ -24,8 +24,10 @@ schnapsen/src/main/java/at/schnapsenmitsepp/
 └── SchnapsenActivity.kt  fertige Activity für Host-Apps
 ```
 
-Alle Grafiken (französische Karten, Kartenrücken mit Edelweiß, Sepp, Filztisch) sind als Vektor-Zeichnungen in
-Compose umgesetzt – keine Bilddateien, in jeder Auflösung scharf.
+Die Spielkarten sind ein eigenes klassisches französisches Blatt (20 Karten + Rücken), als Bilder in
+`schnapsen/src/main/res/drawable-nodpi/sms_*.webp` (600 × 930 px). Die bearbeitbaren Vorlagen (SVG, 800 × 1240 px)
+liegen in `karten/svg/` – nach Änderungen neu als WebP exportieren und die Dateien gleichen Namens ersetzen.
+Sepp, Filztisch und die Farbsymbole in der Oberfläche sind weiterhin Vektor-Zeichnungen in Compose.
 
 ## Schwierigkeitsstufen
 
