@@ -64,13 +64,13 @@ fun SchnapsenMitSeppGame(modifier: Modifier = Modifier, onExit: (() -> Unit)? = 
         }
     }
 
-    // Für Tablets und ältere Spieler: alles größer. Auf Tablets wird die ganze Oberfläche gezoomt,
+    // Für Pensionisten gut lesbar: alles größer. Auf Tablets wird die ganze Oberfläche gezoomt,
     // die Schrift überall zusätzlich vergrößert – die Systemeinstellung für Schriftgröße bleibt wirksam.
     val base = LocalDensity.current
     val tablet = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val zoomed = Density(
-        density = base.density * if (tablet) 1.3f else 1f,
-        fontScale = base.fontScale * if (tablet) 1.15f else 1.2f,
+        density = base.density * if (tablet) 1.45f else 1.08f,
+        fontScale = base.fontScale * if (tablet) 1.15f else 1.1f,
     )
 
     SeppTheme {

@@ -2,7 +2,7 @@
 
 Zweier-Schnapsen nach österreichischen Wirtshausregeln (angelehnt an „Schnapsen mit Karl“)
 gegen den Computergegner **Sepp** – mit französischem Blatt (Herz, Karo, Pik, Kreuz), Bummerl, Liste,
-20/40, Atout tauschen und Zudrehen. Große Schrift und Bedienelemente, gedacht für Tablets.
+20/40, Atout tauschen und Zudrehen. Extra große Schrift, Karten und Knöpfe – gedacht für Tablets und ältere Spieler. Die eigenen Punkte werden immer angezeigt, das Atout steht groß und gut sichtbar daneben.
 
 Das Projekt ist so aufgebaut, dass es **als eigene App** läuft und **in eine andere Android-App
 eingebunden** werden kann.
@@ -43,19 +43,19 @@ Karten, Atout, gezeigte Hochzeiten).
 
 ## Regeln (Kurzfassung)
 
-- 20 Karten: Ass 11 · Zehner 10 · König 4 · Dame/Ober 3 · Bube/Unter 2 (zusammen 120 Augen).
-- Talon offen: kein Farb-/Stichzwang. Talon zu oder leer: höher stechen, sonst Farbe zugeben,
+- 20 Karten: Ass 11 · Zehner 10 · König 4 · Dame 3 · Bube 2 (zusammen 120 Punkte).
+- Stapel offen: kein Farb-/Stichzwang. Stapel zu oder leer: höher stechen, sonst Farbe zugeben,
   sonst mit Atout stechen, sonst abwerfen (Farbzwang geht vor Stichzwang).
-- 20/40 werden automatisch angesagt, wenn man König oder Dame mit Partner ausspielt; die Augen zählen **sofort**.
-- Wer **66 Augen** hat, muss **selbst „Aus!“ melden** (beim Ausspielen oder gleich nach einer Ansage).
-  Falsch ausgemeldet = verloren (Gegner bekommt mindestens 2 Punkte), vergessen = es wird weitergespielt.
-- Atout-Bube tauschen und Zudrehen beim Ausspielen, solange der Talon offen ist.
-- Wertung beim Ausmelden: 3 Punkte (Gegner ohne Stich), 2 (Gegner ≤ 32 Augen), 1 (Gegner ≥ 33).
-- Zudrehen: Die Augen des Gegners werden eingefroren. Schafft der Zudreher die 66 nicht, bekommt der
-  Gegner die Punkte, die der Zudreher bekommen hätte – mindestens 2.
-- Meldet niemand aus, gewinnt der letzte Stich (nicht nach dem Zudrehen).
+- 20/40 werden automatisch angesagt, wenn man König oder Dame mit Partner ausspielt; die Punkte zählen **sofort**.
+- Sobald jemand **66 Punkte** hat, ist das Spiel **automatisch aus** – niemand muss „Aus!“ melden.
+- Atout-Bube tauschen beim Ausspielen, solange der Stapel offen ist.
+- **Zudrehen:** beim Ausspielen einfach auf den Stapel tippen (mit Sicherheitsfrage). Die Punkte des Gegners
+  werden eingefroren. Schafft der Zudreher die 66 nicht, bekommt der Gegner die Spielpunkte, die der
+  Zudreher bekommen hätte – mindestens 2.
+- Wertung: 3 Spielpunkte (Gegner ohne Stich), 2 (Gegner ≤ 32 Punkte), 1 (Gegner ≥ 33).
+- Hat niemand 66, gewinnt der letzte Stich (nicht nach dem Zudrehen).
 - Bummerl: Wer zuerst 7 Spielpunkte hat, gewinnt. Auf der Liste wird von 7 heruntergeschrieben;
-  hat der Verlierer keinen Punkt, bekommt er zwei Bummerl.
+  hat der Verlierer keinen Spielpunkt, bekommt er zwei Bummerl.
 - Den letzten Stich darf man sich ansehen.
 
 ## Als eigene App bauen
@@ -125,5 +125,5 @@ Library haben das Präfix `sms_`, damit es keine Namenskonflikte gibt.
 ./gradlew :schnapsen:testDebugUnitTest
 ```
 
-Die Tests prüfen Regeln (Farbzwang, Stechen, 20/40, Ausmelden, Tauschen, Zudrehen, Wertung, Bummerl) und lassen
+Die Tests prüfen Regeln (Farbzwang, Stechen, 20/40, automatisches Spielende bei 66, Tauschen, Zudrehen, Wertung, Bummerl) und lassen
 alle Bot-Stufen komplette Spiele gegeneinander spielen.

@@ -77,26 +77,31 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
     val state = vm.hand ?: return
     val cardStyle = LocalCardStyle.current
     var showLastTrick by remember { mutableStateOf(false) }
-    // Nur die eigenen Augen werden gezeigt – und nur, wenn "Augen mitzählen" eingeschaltet ist.
-    val ownPoints = if (vm.settings.showPoints) state.points(Seat.PLAYER) else null
+    var confirmClose by remember { mutableStateOf(false) }
+    // Die eigenen Punkte werden immer unter dem eigenen Stoß angezeigt.
+    val ownPoints = state.points(Seat.PLAYER)
+    val canClose = Rules.canClose(state, Seat.PLAYER) && !vm.seppThinking
+    val onStackTap: () -> Unit = {
+        if (canClose) confirmClose = true else vm.explainClose()
+    }
 
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
         val landscape = maxWidth > maxHeight * 1.15f
         val handCardW = if (landscape) {
-            minOf(maxHeight * 0.3f / CARD_RATIO, (maxWidth - 410.dp) / 4.6f)
+            minOf(maxHeight * 0.34f / CARD_RATIO, (maxWidth - 460.dp) / 4.4f)
         } else {
-            minOf(maxWidth / 4.4f, maxHeight * 0.19f / CARD_RATIO)
+            minOf(maxWidth / 4.15f, maxHeight * 0.22f / CARD_RATIO)
         }
-        val tableCardW = handCardW * if (landscape) 0.85f else 0.92f
-        val seppCardW = handCardW * if (landscape) 0.5f else 0.6f
+        val tableCardW = handCardW * if (landscape) 0.88f else 0.92f
+        val seppCardW = handCardW * if (landscape) 0.5f else 0.58f
         val travel = maxHeight * 0.38f
 
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
-                // Seitenleiste links: Sepp, Liste, Atout, Augen
+                // Seitenleiste links: Sepp, Liste, Atout
                 Column(
                     Modifier
-                        .width(190.dp)
+                        .width(220.dp)
                         .fillMaxHeight()
                         .background(SeppColors.WoodDark.copy(alpha = 0.85f))
                         .verticalScroll(rememberScrollState())
@@ -105,13 +110,13 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                 ) {
                     SeppHeader(vm, onBack)
                     MiniScore(vm, Modifier.fillMaxWidth().clickable(onClick = onShowList))
-                    TrumpBadge(state.trumpSuit, cardStyle, Modifier)
+                    TrumpBadge(state.trumpSuit, cardStyle, Modifier.fillMaxWidth())
                 }
                 // Der Tisch
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     SeppHand(state, seppCardW)
                     Box(Modifier.weight(1f).fillMaxWidth()) {
-                        Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
+                        Stack(state, canClose, tableCardW, onStackTap, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                         TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
                         TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", null, tableCardW * 0.55f, Modifier.align(Alignment.TopEnd).padding(12.dp))
                         TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", ownPoints, tableCardW * 0.55f, Modifier.align(Alignment.BottomEnd).padding(12.dp))
@@ -120,7 +125,7 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                 }
                 // Aktionen rechts
                 Column(
-                    Modifier.width(200.dp).fillMaxHeight().padding(vertical = 10.dp, horizontal = 6.dp),
+                    Modifier.width(220.dp).fillMaxHeight().padding(vertical = 10.dp, horizontal = 6.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -133,9 +138,9 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
             TopBar(vm, onBack, onShowList)
             SeppHand(state, seppCardW)
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                Talon(state, tableCardW, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
+                Stack(state, canClose, tableCardW, onStackTap, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                 TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
-                TrumpBadge(state.trumpSuit, cardStyle, Modifier.align(Alignment.TopEnd).padding(10.dp))
+                TrumpBadge(state.trumpSuit, cardStyle, Modifier.align(Alignment.TopEnd).padding(8.dp), large = false)
                 TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", null, tableCardW * 0.55f, Modifier.align(Alignment.TopStart).padding(start = 18.dp, top = 6.dp))
                 TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", ownPoints, tableCardW * 0.55f, Modifier.align(Alignment.BottomStart).padding(start = 18.dp, bottom = 6.dp))
             }
@@ -146,6 +151,16 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
 
         state.lastTrick?.takeIf { showLastTrick }?.let { trick ->
             LastTrickDialog(trick, tableCardW, onDismiss = { showLastTrick = false })
+        }
+
+        if (confirmClose) {
+            ConfirmCloseDialog(
+                onYes = {
+                    confirmClose = false
+                    vm.onPlayer(Action.Close)
+                },
+                onNo = { confirmClose = false },
+            )
         }
 
         if (state.isOver) {
@@ -164,15 +179,15 @@ private fun SeppHeader(vm: GameViewModel, onBack: () -> Unit) {
             fontSize = 30.sp,
             modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 6.dp),
         )
-        SeppAvatar(if (vm.seppThinking) SeppMood.THINKING else vm.seppMood, Modifier.size(48.dp))
+        SeppAvatar(if (vm.seppThinking) SeppMood.THINKING else vm.seppMood, Modifier.size(56.dp))
         Spacer(Modifier.width(8.dp))
-        Text("Sepp", color = SeppColors.Gold, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        Text("Sepp", color = SeppColors.Gold, fontWeight = FontWeight.Bold, fontSize = 20.sp)
     }
     val says = if (vm.seppThinking) "Hmm, wos moch i jetzt…" else vm.seppSays
     Box(
         Modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(64.dp)
             .background(
                 if (says != null) SeppColors.Cream else Color.Transparent,
                 RoundedCornerShape(topStart = 2.dp, topEnd = 12.dp, bottomEnd = 12.dp, bottomStart = 12.dp),
@@ -180,7 +195,7 @@ private fun SeppHeader(vm: GameViewModel, onBack: () -> Unit) {
             .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        Text(says.orEmpty(), color = SeppColors.Ink, fontSize = 13.sp, maxLines = 2, lineHeight = 16.sp)
+        Text(says.orEmpty(), color = SeppColors.Ink, fontSize = 16.sp, maxLines = 2, lineHeight = 19.sp)
     }
 }
 
@@ -199,10 +214,10 @@ private fun TopBar(vm: GameViewModel, onBack: () -> Unit, onShowList: () -> Unit
             fontSize = 34.sp,
             modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 8.dp),
         )
-        SeppAvatar(if (vm.seppThinking) SeppMood.THINKING else vm.seppMood, Modifier.size(54.dp))
+        SeppAvatar(if (vm.seppThinking) SeppMood.THINKING else vm.seppMood, Modifier.size(60.dp))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            Text("Sepp", color = SeppColors.Gold, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("Sepp", color = SeppColors.Gold, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             val says = if (vm.seppThinking) "Hmm, wos moch i jetzt…" else vm.seppSays
             AnimatedVisibility(visible = says != null, enter = fadeIn(), exit = fadeOut()) {
                 Box(
@@ -210,7 +225,7 @@ private fun TopBar(vm: GameViewModel, onBack: () -> Unit, onShowList: () -> Unit
                         .background(SeppColors.Cream, RoundedCornerShape(topStart = 2.dp, topEnd = 12.dp, bottomEnd = 12.dp, bottomStart = 12.dp))
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                 ) {
-                    Text(says.orEmpty(), color = SeppColors.Ink, fontSize = 14.sp, maxLines = 2)
+                    Text(says.orEmpty(), color = SeppColors.Ink, fontSize = 17.sp, maxLines = 2)
                 }
             }
         }
@@ -229,13 +244,13 @@ private fun MiniScore(vm: GameViewModel, modifier: Modifier) {
             .padding(horizontal = 10.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Liste", color = SeppColors.Ink.copy(alpha = 0.6f), fontSize = 11.sp)
+        Text("Liste", color = SeppColors.Ink.copy(alpha = 0.7f), fontSize = 14.sp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Du ", color = SeppColors.Ink, fontSize = 13.sp)
-            Text("${b.remaining(Seat.PLAYER)}", color = SeppColors.Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text("  ·  ", color = SeppColors.Ink, fontSize = 13.sp)
-            Text("${b.remaining(Seat.SEPP)}", color = SeppColors.Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text(" Sepp", color = SeppColors.Ink, fontSize = 13.sp)
+            Text("Du ", color = SeppColors.Ink, fontSize = 16.sp)
+            Text("${b.remaining(Seat.PLAYER)}", color = SeppColors.Ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text("  ·  ", color = SeppColors.Ink, fontSize = 16.sp)
+            Text("${b.remaining(Seat.SEPP)}", color = SeppColors.Ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text(" Sepp", color = SeppColors.Ink, fontSize = 16.sp)
         }
     }
 }
@@ -266,58 +281,74 @@ private fun SeppHand(state: HandState, cardW: Dp) {
     }
 }
 
+/**
+ * Der Stapel (verdeckte Karten mit der Atoutkarte quer darunter). Antippen = zudrehen, solange das
+ * erlaubt ist – dann ist die oberste Karte golden umrandet.
+ */
 @Composable
-private fun Talon(state: HandState, cardW: Dp, modifier: Modifier) {
-    Box(modifier.width(cardW * 1.6f).height(cardW * CARD_RATIO * 1.1f), contentAlignment = Alignment.CenterStart) {
-        val trump = state.trumpCard
-        if (trump != null) {
-            // Atout liegt quer unter dem Talon
-            PlayingCard(
-                card = trump,
-                faceUp = !state.isClosed,
-                modifier = Modifier
-                    .offset(x = cardW * 0.42f)
-                    .graphicsLayer { rotationZ = 90f }
-                    .width(cardW)
-                    .aspectRatio(1f / CARD_RATIO),
-            )
-        }
-        val layers = minOf(state.stock.size, 5)
-        for (i in 0 until layers) {
-            PlayingCard(
-                card = null,
-                faceUp = false,
-                modifier = Modifier
-                    .offset(x = (i * 1.5f).dp, y = (-i * 1.5f).dp)
-                    .width(cardW)
-                    .aspectRatio(1f / CARD_RATIO),
-                elevation = if (i == layers - 1) 6f else 1f,
-            )
-        }
-        if (state.isClosed && trump != null) {
-            // Zugedreht: die Atoutkarte liegt verdeckt oben drauf
-            PlayingCard(
-                card = null,
-                faceUp = false,
-                modifier = Modifier
-                    .offset(x = cardW * 0.2f, y = 4.dp)
-                    .graphicsLayer { rotationZ = 75f }
-                    .width(cardW)
-                    .aspectRatio(1f / CARD_RATIO),
-                elevation = 8f,
-            )
+private fun Stack(state: HandState, canClose: Boolean, cardW: Dp, onTap: () -> Unit, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.Start) {
+        Box(
+            Modifier
+                .width(cardW * 1.6f)
+                .height(cardW * CARD_RATIO * 1.1f)
+                .clickable(
+                    enabled = state.talonSize > 0 && !state.isClosed,
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onTap,
+                ),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            val trump = state.trumpCard
+            if (trump != null) {
+                // Atout liegt quer unter dem Stapel
+                PlayingCard(
+                    card = trump,
+                    faceUp = !state.isClosed,
+                    modifier = Modifier
+                        .offset(x = cardW * 0.42f)
+                        .graphicsLayer { rotationZ = 90f }
+                        .width(cardW)
+                        .aspectRatio(1f / CARD_RATIO),
+                )
+            }
+            val layers = minOf(state.stock.size, 5)
+            for (i in 0 until layers) {
+                PlayingCard(
+                    card = null,
+                    faceUp = false,
+                    highlighted = canClose && i == layers - 1,
+                    modifier = Modifier
+                        .offset(x = (i * 1.5f).dp, y = (-i * 1.5f).dp)
+                        .width(cardW)
+                        .aspectRatio(1f / CARD_RATIO),
+                    elevation = if (i == layers - 1) 6f else 1f,
+                )
+            }
+            if (state.isClosed && trump != null) {
+                // Zugedreht: die Atoutkarte liegt verdeckt oben drauf
+                PlayingCard(
+                    card = null,
+                    faceUp = false,
+                    modifier = Modifier
+                        .offset(x = cardW * 0.2f, y = 4.dp)
+                        .graphicsLayer { rotationZ = 75f }
+                        .width(cardW)
+                        .aspectRatio(1f / CARD_RATIO),
+                    elevation = 8f,
+                )
+            }
         }
         val label = when {
             state.isClosed -> "zugedreht"
-            state.talonSize == 0 -> "Talon leer"
-            else -> "${state.talonSize} im Talon"
+            state.talonSize == 0 -> "Stapel leer"
+            else -> "${state.talonSize} im Stapel"
         }
-        Text(
-            label,
-            color = SeppColors.Cream.copy(alpha = 0.85f),
-            fontSize = 12.sp,
-            modifier = Modifier.align(Alignment.BottomStart).offset(y = 18.dp),
-        )
+        Text(label, color = SeppColors.Cream, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        if (canClose) {
+            Text("Antippen = zudrehen", color = SeppColors.Gold, fontSize = 15.sp)
+        }
     }
 }
 
@@ -346,13 +377,13 @@ private fun TrickPile(tricks: Int, label: String, points: Int?, cardW: Dp, modif
         Text(
             "$label: $tricks",
             color = SeppColors.Cream,
-            fontSize = 13.sp,
+            fontSize = 16.sp,
         )
         if (points != null) {
             Text(
-                "$points Augen",
+                "$points Punkte",
                 color = SeppColors.Gold,
-                fontSize = 16.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -413,17 +444,51 @@ private fun TrickCard(
     )
 }
 
+/** Gut sichtbares Kasterl: welche Farbe Atout (Trumpf) ist – großes Symbol auf hellem Grund. */
 @Composable
-private fun TrumpBadge(suit: Suit, cardStyle: CardStyle, modifier: Modifier) {
+private fun TrumpBadge(suit: Suit, cardStyle: CardStyle, modifier: Modifier, large: Boolean = true) {
     Column(
         modifier
-            .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .shadow(6.dp, RoundedCornerShape(14.dp))
+            .background(SeppColors.Cream, RoundedCornerShape(14.dp))
+            .border(3.dp, SeppColors.Gold, RoundedCornerShape(14.dp))
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Atout", color = SeppColors.Gold, fontSize = 11.sp)
-        Canvas(Modifier.size(30.dp)) { drawSuit(suit, Offset(size.width / 2, size.height / 2), size.minDimension, cardStyle) }
-        Text(cardStyle.suitName(suit), color = SeppColors.Cream, fontSize = 12.sp)
+        Text("ATOUT", color = SeppColors.Burgundy, fontSize = if (large) 17.sp else 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+        Canvas(Modifier.padding(vertical = 4.dp).size(if (large) 56.dp else 40.dp)) {
+            drawSuit(suit, Offset(size.width / 2, size.height / 2), size.minDimension, cardStyle)
+        }
+        Text(cardStyle.suitName(suit), color = SeppColors.Ink, fontSize = if (large) 22.sp else 18.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Sicherheitsfrage vor dem Zudrehen – das lässt sich nicht rückgängig machen. */
+@Composable
+private fun ConfirmCloseDialog(onYes: () -> Unit, onNo: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onNo),
+        contentAlignment = Alignment.Center,
+    ) {
+        WoodPanel(Modifier.padding(24.dp).widthIn(max = 460.dp)) {
+            Text("Stapel zudrehen?", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium, color = SeppColors.Gold)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Dann wird nicht mehr abgehoben und es gilt Farb- und Stichzwang. " +
+                    "Schaffst du die 66 Punkte nicht, bekommt Sepp mindestens 2 Spielpunkte.",
+                color = SeppColors.Cream,
+                fontSize = 18.sp,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                GoldButton("Nein", secondary = true, onClick = onNo)
+                GoldButton("Ja, zudrehen", onClick = onYes)
+            }
+        }
     }
 }
 
@@ -432,7 +497,7 @@ private fun StatusLine(state: HandState, vm: GameViewModel) {
     val text = vm.hint ?: when {
         state.isOver -> ""
         vm.seppThinking -> "Sepp überlegt…"
-        state.toAct == Seat.PLAYER && state.announcedSuit != null -> "Du hast 66 – sag \"Aus!\" oder spiel König/${LocalCardStyle.current.rankName(Rank.OBER)} aus"
+        state.toAct == Seat.PLAYER && state.announcedSuit != null -> "Spiel König oder ${LocalCardStyle.current.rankName(Rank.OBER)} aus"
         state.toAct == Seat.PLAYER && state.leadCard == null -> "Du spielst aus"
         state.toAct == Seat.PLAYER && state.strictRules -> "Gib zu – Farb- und Stichzwang!"
         state.toAct == Seat.PLAYER -> "Gib zu"
@@ -441,7 +506,8 @@ private fun StatusLine(state: HandState, vm: GameViewModel) {
     Text(
         text,
         color = if (vm.hint != null) SeppColors.Gold else SeppColors.Cream,
-        fontSize = 14.sp,
+        fontSize = 19.sp,
+        fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center,
         modifier = Modifier
             .fillMaxWidth()
@@ -464,8 +530,6 @@ private fun ActionBar(
     val me = Seat.PLAYER
     val chips = buildList {
         if (Rules.canExchangeTrump(state, me)) add("Atout tauschen" to Action.ExchangeTrump)
-        if (Rules.canClose(state, me)) add("Zudrehen" to Action.Close)
-        if (Rules.canClaim(state, me)) add("Aus! (66)" to Action.Claim)
     }
     val buttons: @Composable () -> Unit = {
         chips.forEach { (label, action) -> GoldButton(label, small = true) { vm.onPlayer(action) } }
@@ -481,7 +545,7 @@ private fun ActionBar(
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(46.dp)
+                .height(58.dp)
                 .horizontalScroll(rememberScrollState())
                 .padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -538,7 +602,7 @@ private fun PlayerHand(state: HandState, cardW: Dp, onTap: (Card) -> Unit) {
                     Text(
                         "gezeigt",
                         color = SeppColors.Gold,
-                        fontSize = 10.sp,
+                        fontSize = 13.sp,
                         modifier = Modifier.offset(x = x, y = lift - cardW * CARD_RATIO - 2.dp),
                     )
                 }
@@ -564,7 +628,7 @@ private fun LastTrickDialog(trick: Trick, cardW: Dp, onDismiss: () -> Unit) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         PlayingCard(card, Modifier.width(cardW).aspectRatio(1f / CARD_RATIO))
                         Spacer(Modifier.height(4.dp))
-                        Text(if (seat == Seat.PLAYER) "Du" else "Sepp", color = SeppColors.Cream)
+                        Text(if (seat == Seat.PLAYER) "Du" else "Sepp", color = SeppColors.Cream, fontSize = 18.sp)
                     }
                 }
             }
@@ -572,6 +636,7 @@ private fun LastTrickDialog(trick: Trick, cardW: Dp, onDismiss: () -> Unit) {
             Text(
                 if (trick.winner == Seat.PLAYER) "Den Stich hast du gemacht." else "Den Stich hat Sepp gemacht.",
                 color = SeppColors.Cream,
+                fontSize = 18.sp,
             )
         }
     }
@@ -589,8 +654,7 @@ private fun ResultOverlay(vm: GameViewModel, state: HandState, onShowList: () ->
         else -> "einfach"
     }
     val reasonText = when (r.reason) {
-        HandEndReason.REACHED_66 -> if (playerWon) "Du hast mit ${r.winnerPoints} Augen ausgemeldet." else "Sepp hat mit ${r.winnerPoints} Augen ausgemeldet."
-        HandEndReason.WRONG_CLAIM -> if (loser == Seat.PLAYER) "Falsch ausgemeldet – du hattest erst ${r.loserPoints} Augen." else "Sepp hat sich verzählt (${r.loserPoints} Augen)."
+        HandEndReason.REACHED_66 -> if (playerWon) "Du hast ${r.winnerPoints} Punkte erreicht." else "Sepp hat ${r.winnerPoints} Punkte erreicht."
         HandEndReason.LAST_TRICK -> if (playerWon) "Keiner hatte 66 – dein letzter Stich entscheidet." else "Keiner hatte 66 – Sepp hat den letzten Stich."
         HandEndReason.CLOSER_FAILED -> if (loser == Seat.PLAYER) "Du hast zugedreht, aber keine 66 geschafft." else "Sepp hat zugedreht und keine 66 geschafft."
     }
@@ -599,7 +663,7 @@ private fun ResultOverlay(vm: GameViewModel, state: HandState, onShowList: () ->
         contentAlignment = Alignment.Center,
     ) {
         AnimatedVisibility(visible = true, enter = scaleIn() + fadeIn()) {
-            WoodPanel(Modifier.padding(24.dp).widthIn(max = 380.dp)) {
+            WoodPanel(Modifier.padding(24.dp).widthIn(max = 460.dp)) {
                 if (finished != null) {
                     val bummerlLoser = finished.winner!!.other
                     Text("Bummerl!", style = androidx.compose.material3.MaterialTheme.typography.displayLarge, color = SeppColors.Gold)
@@ -610,7 +674,7 @@ private fun ResultOverlay(vm: GameViewModel, state: HandState, onShowList: () ->
                         if (bummerlLoser == Seat.SEPP) "Sepp kriegt ${if (finished.bummerlCount == 2) "zwei Bummerl (Schneider)!" else "ein Bummerl!"}"
                         else "Du kriegst ${if (finished.bummerlCount == 2) "zwei Bummerl (Schneider)" else "ein Bummerl"}.",
                         color = SeppColors.Cream,
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         textAlign = TextAlign.Center,
                     )
                 } else {
@@ -621,23 +685,26 @@ private fun ResultOverlay(vm: GameViewModel, state: HandState, onShowList: () ->
                     )
                 }
                 Spacer(Modifier.height(10.dp))
-                Text(reasonText, color = SeppColors.Cream, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(6.dp))
+                Text(reasonText, color = SeppColors.Cream, textAlign = TextAlign.Center, fontSize = 19.sp)
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    "Augen ${state.points(Seat.PLAYER)} : ${state.points(Seat.SEPP)}",
-                    color = SeppColors.Cream.copy(alpha = 0.8f),
+                    "Punkte: Du ${state.points(Seat.PLAYER)} · Sepp ${state.points(Seat.SEPP)}",
+                    color = SeppColors.Cream,
+                    fontSize = 19.sp,
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(
-                    "${if (playerWon) "Du schreibst" else "Sepp schreibt"} ${r.gamePoints} ${if (r.gamePoints == 1) "Punkt" else "Punkte"} ab ($tier)",
+                    "${if (playerWon) "Du schreibst" else "Sepp schreibt"} ${r.gamePoints} ${if (r.gamePoints == 1) "Spielpunkt" else "Spielpunkte"} ab ($tier)",
                     color = SeppColors.Gold,
                     fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
                     textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     "Liste: Du ${vm.bummerl.remaining(Seat.PLAYER)} · Sepp ${vm.bummerl.remaining(Seat.SEPP)}",
                     color = SeppColors.Cream,
+                    fontSize = 18.sp,
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -700,14 +767,14 @@ internal fun GoldButton(
             )
             .border(1.5.dp, SeppColors.Gold, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = if (small) 14.dp else 22.dp, vertical = if (small) 7.dp else 11.dp),
+            .padding(horizontal = if (small) 18.dp else 26.dp, vertical = if (small) 10.dp else 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
             color = if (secondary) SeppColors.Gold else SeppColors.Ink,
             fontWeight = FontWeight.Bold,
-            fontSize = if (small) 14.sp else 16.sp,
+            fontSize = if (small) 17.sp else 20.sp,
         )
     }
 }

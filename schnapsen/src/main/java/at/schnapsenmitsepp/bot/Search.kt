@@ -89,7 +89,6 @@ internal class Search(private val random: Random) {
 
     /** Zugauswahl im Suchbaum: Hochzeiten immer ansagen, Karten nach Wert sortiert. */
     private fun searchMoves(s: HandState, actor: Seat): List<Action> {
-        if (Rules.claimIsValid(s, actor)) return listOf(Action.Claim)
         val moves = ArrayList<Action>(8)
         if (s.leadCard == null && s.announcedSuit == null) {
             val marriageSuits = Rules.announceableSuits(s, actor)

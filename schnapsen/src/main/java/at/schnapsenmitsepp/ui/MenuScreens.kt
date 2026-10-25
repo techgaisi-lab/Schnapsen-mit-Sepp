@@ -25,8 +25,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -47,10 +45,7 @@ import at.schnapsenmitsepp.engine.Card
 import at.schnapsenmitsepp.engine.Rank
 import at.schnapsenmitsepp.engine.Seat
 import at.schnapsenmitsepp.engine.Suit
-import androidx.compose.runtime.CompositionLocalProvider
 import at.schnapsenmitsepp.ui.cards.CARD_RATIO
-import at.schnapsenmitsepp.ui.cards.CardStyle
-import at.schnapsenmitsepp.ui.cards.LocalCardStyle
 import at.schnapsenmitsepp.ui.cards.PlayingCard
 import at.schnapsenmitsepp.ui.theme.SeppColors
 
@@ -83,8 +78,6 @@ internal fun MenuScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     DifficultyPicker(vm)
-                    Spacer(Modifier.height(16.dp))
-                    SettingsPanel(vm)
                 }
             }
         } else {
@@ -100,8 +93,6 @@ internal fun MenuScreen(
                 DifficultyPicker(vm)
                 Spacer(Modifier.height(20.dp))
                 MenuButtons(vm, onPlay, onNewBummerl, onList, onRules)
-                Spacer(Modifier.height(20.dp))
-                SettingsPanel(vm)
                 Spacer(Modifier.height(24.dp))
             }
         }
@@ -114,6 +105,7 @@ private fun ColumnScope.MenuHeader(onExit: (() -> Unit)?, compact: Boolean = fal
         Text(
             "‹ Zurück",
             color = SeppColors.Cream,
+            fontSize = 20.sp,
             modifier = Modifier.align(Alignment.Start).clickable(onClick = onExit).padding(6.dp),
         )
     }
@@ -160,16 +152,16 @@ private fun ColumnScope.MenuHeader(onExit: (() -> Unit)?, compact: Boolean = fal
                 .background(SeppColors.Cream, RoundedCornerShape(topStart = 2.dp, topEnd = 14.dp, bottomEnd = 14.dp, bottomStart = 14.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Text("Servus! Spü ma a Bummerl?", color = SeppColors.Ink)
+            Text("Servus! Spü ma a Bummerl?", color = SeppColors.Ink, fontSize = 19.sp)
         }
     }
 }
 
 @Composable
 private fun ColumnScope.DifficultyPicker(vm: GameViewModel) {
-    Text("Wie stark soll Sepp spielen?", color = SeppColors.Cream, style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(8.dp))
-    Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Text("Wie stark soll Sepp spielen?", color = SeppColors.Cream, style = MaterialTheme.typography.titleMedium.copy(fontSize = 21.sp))
+    Spacer(Modifier.height(10.dp))
+    Column(Modifier.widthIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Difficulty.entries.forEach { d ->
             val selected = vm.settings.difficulty == d
             Row(
@@ -181,18 +173,18 @@ private fun ColumnScope.DifficultyPicker(vm: GameViewModel) {
                     )
                     .border(if (selected) 2.dp else 1.dp, if (selected) SeppColors.Gold else SeppColors.GoldDark.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                     .clickable { vm.setDifficulty(d) }
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     "★".repeat(d.ordinal + 1).padEnd(4, '☆'),
                     color = SeppColors.Gold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.width(72.dp),
+                    fontSize = 20.sp,
+                    modifier = Modifier.width(92.dp),
                 )
                 Column {
-                    Text(d.title, color = SeppColors.Cream, fontWeight = FontWeight.Bold)
-                    Text(d.subtitle, color = SeppColors.Cream.copy(alpha = 0.75f), fontSize = 13.sp)
+                    Text(d.title, color = SeppColors.Cream, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                    Text(d.subtitle, color = SeppColors.Cream.copy(alpha = 0.8f), fontSize = 16.sp)
                 }
             }
         }
@@ -229,36 +221,6 @@ private fun ColumnScope.MenuButtons(
     }
 }
 
-@Composable
-private fun SettingsPanel(vm: GameViewModel) {
-    Column(
-        Modifier
-            .widthIn(max = 420.dp)
-            .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-    ) {
-        SettingRow("Augen mitzählen", "Zeigt deine Augen unter deinem Stoß an", vm.settings.showPoints) {
-            vm.updateSettings(vm.settings.copy(showPoints = it))
-        }
-    }
-}
-
-@Composable
-private fun SettingRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, color = SeppColors.Cream, fontWeight = FontWeight.Bold)
-            Text(subtitle, color = SeppColors.Cream.copy(alpha = 0.7f), fontSize = 12.sp)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = SeppColors.Gold, checkedThumbColor = SeppColors.Ink),
-        )
-    }
-}
-
 private val Handwriting = TextStyle(fontFamily = FontFamily.Cursive, color = Color(0xFF1C2E6B))
 
 /** Die Liste wie am Wirtshaustisch: kariertes Papier, runtergeschriebene Punkte, Bummerl als Kreise. */
@@ -270,6 +232,7 @@ internal fun ListScreen(vm: GameViewModel, onBack: () -> Unit) {
         Text(
             "‹ Zurück",
             color = SeppColors.Cream,
+            fontSize = 20.sp,
             modifier = Modifier.clickable(onClick = onBack).padding(6.dp),
         )
         Spacer(Modifier.height(6.dp))
@@ -375,7 +338,7 @@ private fun PaperLines(modifier: Modifier) {
 @Composable
 internal fun RulesScreen(onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().feltBackground().padding(16.dp)) {
-        Text("‹ Zurück", color = SeppColors.Cream, modifier = Modifier.clickable(onClick = onBack).padding(6.dp))
+        Text("‹ Zurück", color = SeppColors.Cream, fontSize = 20.sp, modifier = Modifier.clickable(onClick = onBack).padding(6.dp))
         Column(
             Modifier
                 .fillMaxWidth()
@@ -387,37 +350,37 @@ internal fun RulesScreen(onBack: () -> Unit) {
             Text("Spielregeln", style = MaterialTheme.typography.headlineMedium, color = SeppColors.Ink)
             RULES.forEach { (title, body) ->
                 Spacer(Modifier.height(12.dp))
-                Text(title, style = MaterialTheme.typography.titleMedium, color = SeppColors.Burgundy)
-                Text(body, style = MaterialTheme.typography.bodyMedium, color = SeppColors.Ink)
+                Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 21.sp), color = SeppColors.Burgundy)
+                Text(body, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp, lineHeight = 25.sp), color = SeppColors.Ink)
             }
         }
     }
 }
 
 private val RULES = listOf(
-    "Die Karten" to "Gespielt wird mit 20 französischen Karten: Ass (11 Augen), Zehner (10), König (4), Dame (3) und Bube (2) " +
-        "in den Farben Herz, Karo, Pik und Kreuz. Zusammen sind das 120 Augen.",
-    "Ziel" to "Wer zuerst 66 Augen aus Stichen und Ansagen hat und selbst \"Aus!\" meldet, gewinnt das Spiel. Wer zuerst 7 Spielpunkte hat, gewinnt das Bummerl.",
+    "Die Karten" to "Gespielt wird mit 20 französischen Karten: Ass (11 Punkte), Zehner (10), König (4), Dame (3) und Bube (2) " +
+        "in den Farben Herz, Karo, Pik und Kreuz. Zusammen sind das 120 Punkte.",
+    "Ziel" to "Wer zuerst 66 Punkte aus Stichen und Ansagen hat, gewinnt das Spiel – es ist dann sofort automatisch aus. " +
+        "Wer zuerst 7 Spielpunkte hat, gewinnt das Bummerl.",
     "Geben" to "Die Spieler geben abwechselnd. Jeder bekommt 5 Karten, eine Karte wird aufgedeckt und bestimmt die Atoutfarbe (Trumpf). " +
-        "Der Talon liegt quer darüber, die Atoutkarte zählt als unterste Talonkarte. Wer nicht gegeben hat, spielt aus.",
+        "Der Stapel liegt quer darüber, die Atoutkarte zählt als unterste Karte des Stapels. Wer nicht gegeben hat, spielt aus.",
     "Stechen" to "Ein Stich geht an die höhere Karte derselben Farbe oder an Atout. Bei verschiedenen Farben ohne Atout gewinnt die ausgespielte Karte. " +
-        "Wer den Stich macht, hebt zuerst vom Talon ab, dann der Gegner, und spielt zum nächsten Stich aus.",
-    "Solange der Talon offen ist" to "Es gibt weder Farb- noch Stichzwang – du darfst jede Karte zugeben.",
-    "Farb- und Stichzwang" to "Ist der Talon aufgebraucht oder zugedreht, musst du: mit einer höheren Karte der angespielten Farbe stechen; " +
+        "Wer den Stich macht, hebt zuerst vom Stapel ab, dann der Gegner, und spielt zum nächsten Stich aus.",
+    "Solange der Stapel offen ist" to "Es gibt weder Farb- noch Stichzwang – du darfst jede Karte zugeben.",
+    "Farb- und Stichzwang" to "Ist der Stapel aufgebraucht oder zugedreht, musst du: mit einer höheren Karte der angespielten Farbe stechen; " +
         "geht das nicht, eine niedrigere Karte der Farbe zugeben; hast du die Farbe nicht, mit Atout stechen; sonst beliebig abwerfen. " +
         "Farbzwang geht vor Stichzwang – mit Atout stechen, obwohl du die Farbe hast, ist verboten.",
     "20 und 40" to "Spielst du König oder Dame aus und hast den Partner derselben Farbe in der Hand, wird automatisch angesagt: " +
-        "20 Augen, in der Atoutfarbe 40. Die Augen werden sofort gutgeschrieben.",
-    "Atout tauschen" to "Wer den Atout-Buben hat, darf ihn beim Ausspielen gegen die offene Atoutkarte unter dem Talon tauschen – " +
-        "solange der Talon offen ist.",
-    "Zudrehen" to "Beim Ausspielen kannst du den Talon zudrehen. Dann wird nicht mehr abgehoben, es gilt Farb- und Stichzwang und Atout tauschen geht nicht mehr. " +
-        "Die Augen des Gegners werden eingefroren: Hatte er beim Zudrehen keinen Stich, bekommst du 3 Punkte, bei 32 oder weniger Augen 2, sonst 1. " +
-        "Schaffst du die 66 nicht, bekommt der Gegner die Punkte, die du bekommen hättest – mindestens 2.",
-    "Ausmelden" to "Mitzählen musst du selbst! Hast du 66 Augen, drückst du beim Ausspielen (oder gleich nach einer Ansage) auf \"Aus!\". " +
-        "Meldest du mit weniger als 66 aus, hast du verloren und der Gegner bekommt mindestens 2 Punkte. " +
-        "Vergisst du es, wird weitergespielt. Wertung beim richtigen Ausmelden:\n" +
-        "3 Punkte: der Gegner hat keinen Stich.\n2 Punkte: der Gegner hat 32 Augen oder weniger.\n1 Punkt: der Gegner hat 33 oder mehr.",
-    "Letzter Stich" to "Meldet niemand aus, gewinnt der letzte Stich das Spiel. Wurde zugedreht, gilt das nicht – dann hat der Zudreher verloren.",
+        "20 Punkte, in der Atoutfarbe 40. Die Punkte werden sofort gutgeschrieben.",
+    "Atout tauschen" to "Wer den Atout-Buben hat, darf ihn beim Ausspielen gegen die offene Atoutkarte unter dem Stapel tauschen – " +
+        "solange der Stapel offen ist.",
+    "Zudrehen" to "Wenn du ausspielst, tippst du einfach auf den Stapel, um zuzudrehen. Dann wird nicht mehr abgehoben, es gilt Farb- und Stichzwang " +
+        "und Atout tauschen geht nicht mehr. Die Punkte des Gegners werden eingefroren: Hatte er beim Zudrehen keinen Stich, bekommst du 3 Spielpunkte, " +
+        "bei 32 oder weniger Punkten 2, sonst 1. Schaffst du die 66 nicht, bekommt der Gegner die Spielpunkte, die du bekommen hättest – mindestens 2.",
+    "Spielende und Wertung" to "Sobald jemand 66 Punkte hat, ist das Spiel automatisch vorbei. Der Gewinner schreibt ab:\n" +
+        "3 Spielpunkte: der Gegner hat keinen Stich.\n2 Spielpunkte: der Gegner hat 32 Punkte oder weniger.\n1 Spielpunkt: der Gegner hat 33 oder mehr.",
+    "Letzter Stich" to "Hat niemand 66 Punkte, wenn alle Karten gespielt sind, gewinnt der letzte Stich das Spiel. " +
+        "Wurde zugedreht, gilt das nicht – dann hat der Zudreher verloren.",
     "Bummerl und Liste" to "Wer zuerst 7 Spielpunkte hat, gewinnt; der Verlierer hat das Bummerl. Auf der Liste wird traditionell von 7 heruntergeschrieben. " +
-        "Hat der Verlierer gar keinen Punkt gemacht, bekommt er zwei Bummerl.",
+        "Hat der Verlierer gar keinen Spielpunkt gemacht, bekommt er zwei Bummerl.",
 )

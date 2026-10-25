@@ -10,8 +10,6 @@ import at.schnapsenmitsepp.engine.Seat
 
 data class Settings(
     val difficulty: Difficulty = Difficulty.MITTEL,
-    /** Augen mitzählen und anzeigen. */
-    val showPoints: Boolean = true,
 )
 
 data class Stats(
@@ -29,12 +27,10 @@ class ScoreStore(context: Context) {
 
     fun loadSettings() = Settings(
         difficulty = runCatching { Difficulty.valueOf(prefs.getString("difficulty", null)!!) }.getOrDefault(Difficulty.MITTEL),
-        showPoints = prefs.getBoolean("showPoints", true),
     )
 
     fun saveSettings(s: Settings) = prefs.edit {
         putString("difficulty", s.difficulty.name)
-        putBoolean("showPoints", s.showPoints)
     }
 
     fun loadStats() = Stats(

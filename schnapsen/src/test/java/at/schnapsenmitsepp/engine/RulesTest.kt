@@ -93,31 +93,29 @@ class RulesTest {
     }
 
     @Test
-    fun reaching66RequiresClaim() {
+    fun reaching66EndsGameAutomatically() {
         var s = fixture(
             player = listOf(c(Suit.LAUB, Rank.ASS), c(Suit.EICHEL, Rank.UNTER)),
             sepp = listOf(c(Suit.LAUB, Rank.ZEHN), c(Suit.EICHEL, Rank.OBER)),
         ).copy(cardPoints = listOf(45, 20), trickCounts = listOf(2, 1))
         s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.ASS)))
         s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.ZEHN)))
-        assertFalse(s.isOver) // ohne "Aus!" geht es weiter
-        assertTrue(Rules.claimIsValid(s, Seat.PLAYER))
-        s = Rules.apply(s, Action.Claim)
+        assertTrue(s.isOver) // 45 + 21 = 66 Punkte: sofort aus, ohne "Aus!"
         val r = s.result!!
         assertEquals(Seat.PLAYER, r.winner)
         assertEquals(HandEndReason.REACHED_66, r.reason)
-        assertEquals(2, r.gamePoints) // Sepp hat 20 Augen
+        assertEquals(2, r.gamePoints) // Sepp hat 20 Punkte
     }
 
     @Test
-    fun claimRightAfterAnnouncement() {
+    fun announcementReaching66EndsGame() {
         val s = fixture(
             player = listOf(c(Suit.HERZ, Rank.KOENIG), c(Suit.HERZ, Rank.OBER)),
             sepp = listOf(c(Suit.LAUB, Rank.ASS), c(Suit.EICHEL, Rank.UNTER)),
         ).copy(cardPoints = listOf(30, 40), trickCounts = listOf(2, 3))
         val announced = Rules.apply(s, Action.Announce(Suit.HERZ))
-        assertFalse(announced.isOver)
-        val r = Rules.apply(announced, Action.Claim).result!!
+        assertTrue(announced.isOver) // 30 + 40 = 70 Punkte
+        val r = announced.result!!
         assertEquals(Seat.PLAYER, r.winner)
         assertEquals(1, r.gamePoints)
     }
@@ -158,7 +156,7 @@ class RulesTest {
         s = Rules.applyAndCollect(s, Action.Play(c(Suit.HERZ, Rank.ASS)))
         s = Rules.applyAndCollect(s, Action.Play(c(Suit.LAUB, Rank.UNTER)))
         assertEquals(1, s.hand(Seat.PLAYER).size) // nach dem Zudrehen wird nicht mehr abgehoben
-        s = Rules.apply(s, Action.Claim) // 60 + 11 + 2 = 73 Augen
+        assertTrue(s.isOver) // 60 + 11 + 2 = 73 Punkte: automatisch aus
         assertEquals(Seat.PLAYER, s.result!!.winner)
         assertEquals(3, s.result!!.gamePoints) // Sepp hatte beim Zudrehen keinen Stich
     }
@@ -168,18 +166,6 @@ class RulesTest {
         assertEquals(1, Rules.gamePointsFor(40, 3))
         assertEquals(2, Rules.gamePointsFor(20, 2))
         assertEquals(3, Rules.gamePointsFor(0, 0))
-    }
-
-    @Test
-    fun wrongClaimLoses() {
-        val s = fixture(
-            player = listOf(c(Suit.LAUB, Rank.KOENIG)),
-            sepp = listOf(c(Suit.LAUB, Rank.UNTER)),
-        ).copy(cardPoints = listOf(50, 30), trickCounts = listOf(3, 2))
-        val r = Rules.apply(s, Action.Claim).result!!
-        assertEquals(Seat.SEPP, r.winner)
-        assertEquals(HandEndReason.WRONG_CLAIM, r.reason)
-        assertEquals(2, r.gamePoints)
     }
 
     @Test
