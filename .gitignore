@@ -8,3 +8,10 @@ build/
 .externalNativeBuild
 .cxx
 .kotlin
+
+# Signaturschlüssel – niemals ins Repo
+keystore.properties
+*.jks
+*.keystore
+# Gebaute App-Bundles
+*.aab

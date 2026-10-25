@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// Signaturschlüssel für den Play Store. Die Datei keystore.properties liegt NUR lokal im
+// Projektordner (siehe keystore.properties.example) und ist in .gitignore – sie kommt nie auf GitHub.
+val keystoreProps = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasUploadKey = keystoreProps.getProperty("storeFile") != null
 
 android {
     namespace = "at.schnapsenmitsepp.app"
@@ -11,8 +21,20 @@ android {
         applicationId = "at.schnapsenmitsepp.app"
         minSdk = 24
         targetSdk = 37
+        // Für jedes Update im Play Store um 1 erhöhen.
         versionCode = 1
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        if (hasUploadKey) {
+            create("upload") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -21,9 +43,10 @@ android {
             optimization {
                 enable = true
             }
-            // Zum Ausprobieren ohne eigenen Schlüssel mit dem Debug-Schlüssel signieren.
-            // Für den Play Store hier den eigenen Release-Schlüssel eintragen.
-            signingConfig = signingConfigs.getByName("debug")
+            // Mit eigenem Upload-Schlüssel signieren, sobald keystore.properties vorhanden ist.
+            // Ohne die Datei wird zum Ausprobieren mit dem Debug-Schlüssel signiert –
+            // so ein Build wird vom Play Store abgelehnt.
+            signingConfig = if (hasUploadKey) signingConfigs.getByName("upload") else signingConfigs.getByName("debug")
         }
     }
     compileOptions {
