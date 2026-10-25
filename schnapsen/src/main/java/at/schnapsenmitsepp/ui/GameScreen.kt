@@ -87,13 +87,15 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
 
     BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
         val landscape = maxWidth > maxHeight * 1.15f
+        // Im Querformat überlappen die eigenen Karten etwas mehr – dafür sind sie deutlich größer.
+        val handSpread = if (landscape) 0.64f else 0.78f
         val handCardW = if (landscape) {
-            minOf(maxHeight * 0.34f / CARD_RATIO, (maxWidth - 460.dp) / 4.4f)
+            minOf(maxHeight * 0.40f / CARD_RATIO, (maxWidth - 470.dp) / (1f + 4f * handSpread + 0.15f))
         } else {
             minOf(maxWidth / 4.15f, maxHeight * 0.22f / CARD_RATIO)
         }
-        val tableCardW = handCardW * if (landscape) 0.88f else 0.92f
-        val seppCardW = handCardW * if (landscape) 0.5f else 0.58f
+        val tableCardW = handCardW * if (landscape) 0.72f else 0.92f
+        val seppCardW = handCardW * if (landscape) 0.4f else 0.58f
         val travel = maxHeight * 0.38f
 
         if (landscape) {
@@ -112,26 +114,33 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
                     MiniScore(vm, Modifier.fillMaxWidth().clickable(onClick = onShowList))
                     TrumpBadge(state.trumpSuit, cardStyle, Modifier.fillMaxWidth())
                 }
-                // Der Tisch
+                // Der Tisch – oben eine eigene Zeile: links Sepps Stiche, daneben Sepps Karten.
+                // So kann die Beschriftung nie über den Stapel darunter rutschen.
                 Column(Modifier.weight(1f).fillMaxHeight()) {
-                    SeppHand(state, seppCardW)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                        Box(Modifier.width(160.dp).padding(start = 10.dp, top = 4.dp), contentAlignment = Alignment.TopCenter) {
+                            TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", null, tableCardW * 0.45f, Modifier)
+                        }
+                        Box(Modifier.weight(1f)) { SeppHand(state, seppCardW) }
+                        // gleich breit wie links, damit Sepps Karten mittig über dem Tisch bleiben
+                        Spacer(Modifier.width(160.dp))
+                    }
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         Stack(state, canClose, tableCardW, onStackTap, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                         TrickArea(state, vm.collectingTo, tableCardW, travel, Modifier.align(Alignment.Center).offset(x = tableCardW * 0.45f))
-                        TrickPile(state.tricks(Seat.SEPP), "Sepps Stiche", null, tableCardW * 0.55f, Modifier.align(Alignment.TopEnd).padding(12.dp))
-                        TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", ownPoints, tableCardW * 0.55f, Modifier.align(Alignment.BottomEnd).padding(12.dp))
                     }
-                    PlayerHand(state, handCardW) { card -> vm.onPlayer(Action.Play(card)) }
+                    PlayerHand(state, handCardW, handSpread) { card -> vm.onPlayer(Action.Play(card)) }
                 }
-                // Aktionen rechts
+                // Rechts: oben wer dran ist, darunter die Knöpfe, unten rechts der eigene Stichstoß mit den Punkten
                 Column(
-                    Modifier.width(220.dp).fillMaxHeight().padding(vertical = 10.dp, horizontal = 6.dp),
-                    verticalArrangement = Arrangement.Center,
+                    Modifier.width(220.dp).fillMaxHeight().padding(vertical = 12.dp, horizontal = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     StatusLine(state, vm)
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     ActionBar(state, vm, cardStyle, vertical = true, onShowLastTrick = { showLastTrick = true })
+                    Spacer(Modifier.weight(1f))
+                    TrickPile(state.tricks(Seat.PLAYER), "Deine Stiche", ownPoints, tableCardW * 0.6f, Modifier)
                 }
             }
         } else Column(Modifier.fillMaxSize()) {
@@ -146,7 +155,7 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
             }
             StatusLine(state, vm)
             ActionBar(state, vm, cardStyle, onShowLastTrick = { showLastTrick = true })
-            PlayerHand(state, handCardW) { card -> vm.onPlayer(Action.Play(card)) }
+            PlayerHand(state, handCardW, handSpread) { card -> vm.onPlayer(Action.Play(card)) }
         }
 
         state.lastTrick?.takeIf { showLastTrick }?.let { trick ->
@@ -259,7 +268,7 @@ private fun MiniScore(vm: GameViewModel, modifier: Modifier) {
 private fun SeppHand(state: HandState, cardW: Dp) {
     val cards = state.hand(Seat.SEPP)
     val revealed = state.revealed[Seat.SEPP.ordinal]
-    Box(Modifier.fillMaxWidth().height(cardW * CARD_RATIO + 14.dp), contentAlignment = Alignment.TopCenter) {
+    Box(Modifier.fillMaxWidth().height(cardW * CARD_RATIO + 10.dp), contentAlignment = Alignment.TopCenter) {
         val n = cards.size
         cards.forEachIndexed { i, card ->
             key(card) {
@@ -392,7 +401,7 @@ private fun TrickPile(tricks: Int, label: String, points: Int?, cardW: Dp, modif
 
 @Composable
 private fun TrickArea(state: HandState, collectingTo: Seat?, cardW: Dp, travel: Dp, modifier: Modifier) {
-    Box(modifier.width(cardW * 2.2f).height(cardW * CARD_RATIO * 1.3f), contentAlignment = Alignment.Center) {
+    Box(modifier.width(cardW * 2.2f).height(cardW * CARD_RATIO * 1.15f), contentAlignment = Alignment.Center) {
         state.leadCard?.let {
             TrickCard(it, state.leader, collectingTo, -cardW * 0.3f, (-8).dp, -7f, cardW, travel)
         }
@@ -555,7 +564,7 @@ private fun ActionBar(
 }
 
 @Composable
-private fun PlayerHand(state: HandState, cardW: Dp, onTap: (Card) -> Unit) {
+private fun PlayerHand(state: HandState, cardW: Dp, spread: Float, onTap: (Card) -> Unit) {
     val trump = state.trumpSuit
     val suitOrder = listOf(trump) + Suit.entries.filter { it != trump }
     val cards = state.hand(Seat.PLAYER).sortedWith(
@@ -577,7 +586,7 @@ private fun PlayerHand(state: HandState, cardW: Dp, onTap: (Card) -> Unit) {
             key(card) {
                 val rel = i - (n - 1) / 2f
                 val isLegal = card in legal
-                val x by animateDpAsState(cardW * 0.78f * rel, tween(260), label = "x")
+                val x by animateDpAsState(cardW * spread * rel, tween(260), label = "x")
                 val lift by animateDpAsState(if (isLegal) (-14).dp else 0.dp, tween(200), label = "lift")
                 val deal = remember(card) { Animatable(1f) }
                 LaunchedEffect(card) { deal.animateTo(0f, tween(420, easing = FastOutSlowInEasing)) }
