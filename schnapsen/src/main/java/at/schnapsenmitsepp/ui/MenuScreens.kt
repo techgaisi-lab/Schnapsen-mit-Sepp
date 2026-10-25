@@ -58,7 +58,7 @@ internal fun MenuScreen(
     onRules: () -> Unit,
     onExit: (() -> Unit)?,
 ) {
-    BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxHeight < 560.dp
         if (maxWidth > maxHeight * 1.15f) {
             // Querformat: links Titel und Sepp, rechts Auswahl und Knöpfe
@@ -228,7 +228,7 @@ private val Handwriting = TextStyle(fontFamily = FontFamily.Cursive, color = Col
 internal fun ListScreen(vm: GameViewModel, onBack: () -> Unit) {
     val b: Bummerl = vm.bummerl
     val stats = vm.stats
-    Column(Modifier.fillMaxSize().feltBackground().padding(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             "‹ Zurück",
             color = SeppColors.Cream,
@@ -337,7 +337,7 @@ private fun PaperLines(modifier: Modifier) {
 
 @Composable
 internal fun RulesScreen(onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().feltBackground().padding(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("‹ Zurück", color = SeppColors.Cream, fontSize = 20.sp, modifier = Modifier.clickable(onClick = onBack).padding(6.dp))
         Column(
             Modifier

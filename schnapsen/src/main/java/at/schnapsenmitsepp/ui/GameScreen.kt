@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import at.schnapsenmitsepp.engine.Action
@@ -85,7 +86,7 @@ internal fun GameScreen(vm: GameViewModel, onBack: () -> Unit, onShowList: () ->
         if (canClose) confirmClose = true else vm.explainClose()
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().feltBackground()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight * 1.15f
         // Im Querformat überlappen die eigenen Karten etwas mehr – dafür sind sie deutlich größer.
         val handSpread = if (landscape) 0.64f else 0.78f
@@ -273,17 +274,21 @@ private fun SeppHand(state: HandState, cardW: Dp) {
         cards.forEachIndexed { i, card ->
             key(card) {
                 val rel = i - (n - 1) / 2f
-                val x by animateDpAsState(cardW * 0.55f * rel, label = "seppX")
+                // Animierter Wert wird nur beim Zeichnen gelesen → keine Neuberechnung des Layouts pro Bild
+                val x = animateDpAsState(cardW * 0.55f * rel, label = "seppX")
                 PlayingCard(
                     card = card,
                     faceUp = card in revealed,
                     modifier = Modifier
                         .padding(top = 6.dp)
-                        .offset(x = x, y = (abs(rel) * 3).dp)
-                        .graphicsLayer { rotationZ = -rel * 5f }
+                        .graphicsLayer {
+                            translationX = x.value.toPx()
+                            translationY = (abs(rel) * 3).dp.toPx()
+                            rotationZ = -rel * 5f
+                        }
                         .width(cardW)
                         .aspectRatio(1f / CARD_RATIO),
-                    elevation = 3f,
+                    elevation = 0f,
                 )
             }
         }
@@ -332,7 +337,7 @@ private fun Stack(state: HandState, canClose: Boolean, cardW: Dp, onTap: () -> U
                         .offset(x = (i * 1.5f).dp, y = (-i * 1.5f).dp)
                         .width(cardW)
                         .aspectRatio(1f / CARD_RATIO),
-                    elevation = if (i == layers - 1) 6f else 1f,
+                    elevation = if (i == layers - 1) 6f else 0f,
                 )
             }
             if (state.isClosed && trump != null) {
@@ -379,7 +384,8 @@ private fun TrickPile(tricks: Int, label: String, points: Int?, cardW: Dp, modif
                         .graphicsLayer { rotationZ = if (i % 2 == 0) 82f else 98f }
                         .width(cardW)
                         .aspectRatio(1f / CARD_RATIO),
-                    elevation = 2f,
+                    // nur die oberste Karte wirft einen Schatten
+                    elevation = if (i == minOf(tricks, 6) - 1) 2f else 0f,
                 )
             }
         }
@@ -586,8 +592,10 @@ private fun PlayerHand(state: HandState, cardW: Dp, spread: Float, onTap: (Card)
             key(card) {
                 val rel = i - (n - 1) / 2f
                 val isLegal = card in legal
-                val x by animateDpAsState(cardW * spread * rel, tween(260), label = "x")
-                val lift by animateDpAsState(if (isLegal) (-14).dp else 0.dp, tween(200), label = "lift")
+                // Animierte Werte werden nur beim Zeichnen gelesen → kein Neu-Layout bei jedem Bild
+                val x = animateDpAsState(cardW * spread * rel, tween(260), label = "x")
+                val lift = animateDpAsState(if (isLegal) (-14).dp else 0.dp, tween(200), label = "lift")
+                val curve = (abs(rel) * abs(rel) * 3).dp
                 val deal = remember(card) { Animatable(1f) }
                 LaunchedEffect(card) { deal.animateTo(0f, tween(420, easing = FastOutSlowInEasing)) }
                 PlayingCard(
@@ -595,11 +603,10 @@ private fun PlayerHand(state: HandState, cardW: Dp, spread: Float, onTap: (Card)
                     highlighted = isLegal && state.strictRules && state.leadCard != null,
                     dimmed = myTurn && !isLegal,
                     modifier = Modifier
-                        .offset(x = x, y = lift + (abs(rel) * abs(rel) * 3).dp)
                         .graphicsLayer {
                             rotationZ = rel * 5f
-                            translationX = -deal.value * size.width * 1.4f
-                            translationY = -deal.value * size.height * 2.2f
+                            translationX = x.value.toPx() - deal.value * size.width * 1.4f
+                            translationY = (lift.value + curve).toPx() - deal.value * size.height * 2.2f
                             alpha = 1f - deal.value * 0.6f
                         }
                         .width(cardW)
@@ -612,7 +619,9 @@ private fun PlayerHand(state: HandState, cardW: Dp, spread: Float, onTap: (Card)
                         "gezeigt",
                         color = SeppColors.Gold,
                         fontSize = 13.sp,
-                        modifier = Modifier.offset(x = x, y = lift - cardW * CARD_RATIO - 2.dp),
+                        modifier = Modifier.offset {
+                            IntOffset(x.value.roundToPx(), (lift.value - cardW * CARD_RATIO - 2.dp).roundToPx())
+                        },
                     )
                 }
             }

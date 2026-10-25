@@ -17,9 +17,13 @@ android {
 
     buildTypes {
         release {
+            // R8: entfernt ungenutzten Code und verkleinert die App – deutlich schneller auf alten Tablets.
             optimization {
-                enable = false
+                enable = true
             }
+            // Zum Ausprobieren ohne eigenen Schlüssel mit dem Debug-Schlüssel signieren.
+            // Für den Play Store hier den eigenen Release-Schlüssel eintragen.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

@@ -5,11 +5,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -117,23 +121,40 @@ fun SeppAvatar(mood: SeppMood, modifier: Modifier = Modifier) {
 }
 
 /** Grüner Filz mit leichter Struktur und dunklem Rand, wie am Kartentisch im Wirtshaus. */
+/**
+ * Grüner Filz mit leichter Struktur. Wird nur EINMAL (pro Bildschirmgröße) in ein Bild mit halber
+ * Auflösung gezeichnet und danach nur noch als Bild ausgegeben – vorher wurden bei jeder Animation
+ * 900 Punkte neu gezeichnet, das hat auf alten Tablets stark geruckelt.
+ */
 fun Modifier.feltBackground(): Modifier = this
     .background(SeppColors.FeltDark)
-    .drawBehind {
-        drawRect(
-            Brush.radialGradient(
-                listOf(SeppColors.FeltLight, SeppColors.Felt, SeppColors.FeltDark),
-                center = Offset(size.width / 2, size.height * 0.45f),
-                radius = maxOf(size.width, size.height) * 0.75f,
-            ),
-        )
-        val random = Random(7)
-        repeat(900) {
-            val p = Offset(random.nextFloat() * size.width, random.nextFloat() * size.height)
-            drawCircle(
-                if (random.nextBoolean()) Color.White.copy(alpha = 0.035f) else Color.Black.copy(alpha = 0.05f),
-                radius = 1.2f + random.nextFloat() * 1.5f,
-                center = p,
+    .drawWithCache {
+        val w = (size.width / 2f).toInt().coerceAtLeast(1)
+        val h = (size.height / 2f).toInt().coerceAtLeast(1)
+        val felt = ImageBitmap(w, h)
+        CanvasDrawScope().draw(this, layoutDirection, androidx.compose.ui.graphics.Canvas(felt), Size(w.toFloat(), h.toFloat())) {
+            drawRect(
+                Brush.radialGradient(
+                    listOf(SeppColors.FeltLight, SeppColors.Felt, SeppColors.FeltDark),
+                    center = Offset(this.size.width / 2, this.size.height * 0.45f),
+                    radius = maxOf(this.size.width, this.size.height) * 0.75f,
+                ),
+            )
+            val random = Random(7)
+            repeat(900) {
+                val p = Offset(random.nextFloat() * this.size.width, random.nextFloat() * this.size.height)
+                drawCircle(
+                    if (random.nextBoolean()) Color.White.copy(alpha = 0.035f) else Color.Black.copy(alpha = 0.05f),
+                    radius = (1.2f + random.nextFloat() * 1.5f) / 2f,
+                    center = p,
+                )
+            }
+        }
+        onDrawBehind {
+            drawImage(
+                felt,
+                dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                filterQuality = FilterQuality.Low,
             )
         }
     }

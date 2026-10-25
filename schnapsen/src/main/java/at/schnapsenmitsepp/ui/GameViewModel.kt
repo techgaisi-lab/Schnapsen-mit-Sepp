@@ -1,6 +1,7 @@
 package at.schnapsenmitsepp.ui
 
 import android.app.Application
+import android.os.Process
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -18,12 +19,15 @@ import at.schnapsenmitsepp.engine.HandState
 import at.schnapsenmitsepp.engine.Rank
 import at.schnapsenmitsepp.engine.Rules
 import at.schnapsenmitsepp.engine.Seat
+import at.schnapsenmitsepp.ui.cards.CardBitmaps
 import at.schnapsenmitsepp.ui.cards.CardStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 
 /** Steuert ein Bummerl gegen Sepp: Züge, Pausen für Animationen, Sprüche und die Liste. */
 class GameViewModel(app: Application) : AndroidViewModel(app) {
@@ -57,6 +61,27 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
 
     private var bot = SeppBot(settings.difficulty)
     private var loop: Job? = null
+
+    /**
+     * Sepp denkt auf einem eigenen Faden mit niedriger Priorität: Die Animationen am Bildschirm haben
+     * immer Vorrang, auch auf alten Tablets mit wenigen, langsamen Prozessorkernen.
+     */
+    private val botExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread({
+            Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
+            r.run()
+        }, "sepp-denkt").apply { isDaemon = true }
+    }
+    private val botDispatcher = botExecutor.asCoroutineDispatcher()
+
+    init {
+        // Kartenbilder schon vorab im Hintergrund laden, damit das erste Austeilen nicht hakt.
+        viewModelScope.launch(Dispatchers.IO) { CardBitmaps.preload(app.resources) }
+    }
+
+    override fun onCleared() {
+        botExecutor.shutdownNow()
+    }
 
     fun updateSettings(new: Settings) {
         settings = new
@@ -156,7 +181,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         seppThinking = true
         seppMood = SeppMood.THINKING
         val started = System.currentTimeMillis()
-        val action = withContext(Dispatchers.Default) { bot.chooseAction(s, Seat.SEPP) }
+        val action = withContext(botDispatcher) { bot.chooseAction(s, Seat.SEPP) }
         val minThink = if (s.leadCard == null) 750L else 550L
         delay((minThink - (System.currentTimeMillis() - started)).coerceAtLeast(0))
         seppThinking = false

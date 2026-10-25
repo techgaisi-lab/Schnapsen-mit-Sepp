@@ -66,6 +66,27 @@ In Android Studio öffnen und die Run-Konfiguration `app` starten, oder:
 ./gradlew :app:assembleDebug
 ```
 
+## Leistung auf alten Tablets
+
+Die App ist auf schwache Geräte ausgelegt:
+
+- Der Filztisch wird nur einmal (in halber Auflösung) gezeichnet und danach als Bild wiederverwendet.
+- Kartenbilder werden passend zur Bildschirmgröße geladen (auf den meisten Tablets 300 × 465 px statt
+  600 × 930 px – ca. 12 MB statt 47 MB Arbeitsspeicher), nur einmal geladen und beim Start im Hintergrund
+  vorgeladen.
+- Schatten nur dort, wo man sie sieht (oberste Karte eines Stoßes, Handkarten, Karten im Stich).
+- Kartenbewegungen werden nur beim Zeichnen berechnet, nicht bei jedem Bild neu gelayoutet.
+- Sepp denkt auf einem eigenen Faden mit niedriger Priorität – die Animationen haben Vorrang.
+- Release-Build mit R8 (kleiner und schneller).
+
+**Wichtig zum Testen:** Debug-Builds von Compose sind auf alten Geräten um ein Vielfaches langsamer.
+Zum Ausprobieren der echten Geschwindigkeit in Android Studio unter *Build → Select Build Variant* bei
+`app` **release** wählen (wird zum Testen mit dem Debug-Schlüssel signiert) oder:
+
+```bash
+./gradlew :app:assembleRelease
+```
+
 ## In eine andere App einbinden
 
 ### 1. Modul ins Projekt holen

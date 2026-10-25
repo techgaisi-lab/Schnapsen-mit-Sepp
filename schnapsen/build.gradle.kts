@@ -23,6 +23,11 @@ android {
     }
 }
 
+// Die Spiel-Engine ist unveränderlich → Compose darf unveränderte Teile beim Neuzeichnen überspringen.
+composeCompiler {
+    stabilityConfigurationFiles.add(project.layout.projectDirectory.file("compose-stability.conf"))
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

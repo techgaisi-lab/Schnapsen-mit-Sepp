@@ -1,6 +1,7 @@
 package at.schnapsenmitsepp.ui.cards
 
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -29,9 +30,14 @@ import at.schnapsenmitsepp.ui.theme.SeppColors
 /** Seitenverhältnis Höhe/Breite einer Karte. */
 const val CARD_RATIO = 1.55f
 
+private val CardShape = RoundedCornerShape(8)
+
 /**
  * Eine Spielkarte aus dem eigenen französischen Blatt (Bilder in res/drawable-nodpi, 600 x 930 px).
  * Die Bilder haben abgerundete, durchsichtige Ecken mit 8 % Radius – passend zum Schatten.
+ *
+ * Sparsam für alte Tablets: Bei [elevation] 0 wird kein Schatten und keine eigene Grafik-Ebene
+ * angelegt; das spart viel Rechenzeit bei Stapeln, Stichen und Sepps verdeckten Karten.
  */
 @Composable
 fun PlayingCard(
@@ -52,13 +58,14 @@ fun PlayingCard(
         "Verdeckte Karte"
     }
 
-    Box(modifier.shadow(elevation.dp, RoundedCornerShape(8), clip = true)) {
+    val boxModifier = if (elevation > 0f) modifier.shadow(elevation.dp, CardShape) else modifier
+    Box(boxModifier) {
         Image(
             bitmap = bitmap,
             contentDescription = description,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.FillBounds,
-            filterQuality = FilterQuality.High,
+            filterQuality = FilterQuality.Low,
         )
         if (highlighted || dimmed) {
             Canvas(Modifier.fillMaxSize()) {
@@ -105,12 +112,37 @@ fun cardImageRes(card: Card): Int = when (card.suit) {
 }
 
 /**
- * Jedes Kartenbild wird nur einmal geladen und dann für alle Stellen im Spiel wiederverwendet
- * (Hand, Tisch, Talon, Menü) – spart Speicher und verhindert Ruckeln.
+ * Jedes Kartenbild wird nur einmal geladen und dann überall wiederverwendet (Hand, Tisch, Stapel,
+ * Menü). Auf Geräten, auf denen die Karten kleiner als ~340 Pixel breit angezeigt werden, wird nur
+ * jedes zweite Pixel geladen (300 x 465 statt 600 x 930) – das braucht nur ein Viertel des Speichers
+ * (alle 21 Karten zusammen ca. 12 MB statt 47 MB) und ist schneller zu zeichnen.
  */
-private object CardBitmaps {
+object CardBitmaps {
     private val cache = HashMap<Int, ImageBitmap>()
 
-    fun get(resources: Resources, resId: Int): ImageBitmap =
-        cache.getOrPut(resId) { BitmapFactory.decodeResource(resources, resId).asImageBitmap() }
+    private val ALL: List<Int> by lazy {
+        Card.DECK.map { cardImageRes(it) } + R.drawable.sms_rueckseite
+    }
+
+    fun get(resources: Resources, resId: Int): ImageBitmap = synchronized(cache) {
+        cache.getOrPut(resId) { decode(resources, resId) }
+    }
+
+    /** Lädt alle Karten vorab – im Hintergrund aufrufen, damit beim ersten Austeilen nichts hakt. */
+    fun preload(resources: Resources) {
+        for (id in ALL) get(resources, id)
+    }
+
+    private fun decode(resources: Resources, resId: Int): ImageBitmap {
+        val dm = resources.displayMetrics
+        // Größte Karte am Bildschirm: ca. 40 % der kürzeren Seite hoch → Breite = Höhe / 1,55
+        val largestCardPx = minOf(dm.widthPixels, dm.heightPixels) * 0.40f / CARD_RATIO
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = if (largestCardPx <= 340f) 2 else 1
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        val bmp = BitmapFactory.decodeResource(resources, resId, options)
+        bmp.prepareToDraw() // schon jetzt an die Grafikkarte übergeben
+        return bmp.asImageBitmap()
+    }
 }
